@@ -1,0 +1,36 @@
+// =============================================================================
+// OCS DESIGN SYSTEM — SPRING ENTRY POINT
+// =============================================================================
+// Same tokens and components as the Pages build, kept byte-identical so a future
+// sync is a straight file copy rather than a manual reconciliation.
+//
+// One consequence: the compiled CSS still carries the 15-line .user-theme-active
+// block that bridges to Pages' --pref-* variables. Nothing in Spring adds that
+// class, so the block never matches and the tokens resolve to their own values.
+// Left in deliberately - divergence would cost more than the dead rules do.
+// Rebuild with:  bash src/main/resources/static/assets/css/ocs/build.sh
+// =============================================================================
+
+@forward "core/tokens";
+@forward "core/functions";
+
+@use "core/css-vars";
+@use "core/a11y";
+
+@use "components/button";
+@use "components/field";
+@use "components/card";
+@use "components/alert";
+@use "components/badge";
+@use "components/table";
+@use "components/modal";
+@use "components/nav";
+@use "components/toast";
+@use "components/progress";
+@use "components/menu";
+@use "components/avatar";
+@use "components/skeleton";
+@use "components/code";
+@use "components/tooltip";
+
+@use "utilities/layout";

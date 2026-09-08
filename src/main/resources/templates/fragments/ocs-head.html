@@ -1,0 +1,22 @@
+<!--
+  Include the design system in any Thymeleaf template:
+
+    <head th:replace="~{fragments/ocs-head :: ocs}"></head>
+
+  or alongside an existing head:
+
+    <th:block th:replace="~{fragments/ocs-head :: ocsAssets}"></th:block>
+
+  The script is only needed for tabs, menus and modals. Everything else is CSS.
+-->
+<th:block th:fragment="ocsAssets">
+  <link rel="stylesheet" th:href="@{/assets/css/ocs.css}" />
+  <script th:src="@{/assets/js/ocs.js}" defer></script>
+</th:block>
+
+<head th:fragment="ocs">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" th:href="@{/assets/css/ocs.css}" />
+  <script th:src="@{/assets/js/ocs.js}" defer></script>
+</head>

@@ -86,6 +86,10 @@ public class MvcSecurityConfig {
                 .requestMatchers(HttpMethod.POST,"/mvc/person/update/roles").hasAuthority("ROLE_ADMIN")
                 .requestMatchers("/mvc/person/delete/**").hasAuthority("ROLE_ADMIN")
                 .requestMatchers("/mvc/bathroom/**").authenticated()
+                // Stylesheets, scripts and images are not secrets, and .anyRequest()
+                // .authenticated() below otherwise 302s them to /login - which means a
+                // logged-out visitor gets an unstyled page, including the login page.
+                .requestMatchers(HttpMethod.GET, "/assets/**", "/images/**", "/favicon.ico").permitAll()
                 .requestMatchers(HttpMethod.GET, "/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/login").permitAll()
                 .requestMatchers("/authenticate", "/authenticateForm").permitAll()
