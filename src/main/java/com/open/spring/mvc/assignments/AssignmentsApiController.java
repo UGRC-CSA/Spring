@@ -566,9 +566,10 @@ public class AssignmentsApiController {
         Stream<AssignmentSubmission> submissions = submissionRepo.findByAssignmentId(assignmentId).stream();
 
         if (!(user.hasRoleWithName("ROLE_TEACHER") || user.hasRoleWithName("ROLE_ADMIN"))) {
-            // if they aren't a teacher or admin, only let them see submissions they are assigned to grade
+            // if they aren't a teacher or admin, only let them see submissions they are assigned to grade,
+            // on the submission itself or on its assignment
             submissions = submissions
-                .filter(submission -> submission.getAssignedGraders().contains(user));
+                .filter(submission -> submission.isAssignedGrader(user));
         }
 
         List<AssignmentSubmissionReturnDto> returnValue = submissions
@@ -705,7 +706,16 @@ public class AssignmentsApiController {
      * @return A response indicating success or failure.
      */
     @PostMapping("/assignGraders/{id}")
-    public ResponseEntity<?> assignGradersToAssignment( @PathVariable Long id, @RequestBody List<Long> personIds ) {
+    public ResponseEntity<?> assignGradersToAssignment( @PathVariable Long id, @RequestBody List<Long> personIds,
+                                                         @AuthenticationPrincipal UserDetails userDetails ) {
+        // Graders can grade, so only a teacher or admin may choose them.
+        Person caller = userDetails == null ? null : personRepo.findByUid(userDetails.getUsername());
+        if (caller == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("You must be a logged in user to do this");
+        }
+        if (!(caller.hasRoleWithName("ROLE_TEACHER") || caller.hasRoleWithName("ROLE_ADMIN"))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only a teacher or admin can assign graders");
+        }
         Optional<Assignment> assignmentOptional = assignmentRepo.findById(id);
         if (!assignmentOptional.isPresent()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Assignment not found");

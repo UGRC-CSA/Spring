@@ -333,18 +333,18 @@ public class AssignmentSubmissionAPIController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Authentication required"));
         }
-        if (!canGradeOrDeleteSubmission(currentUser)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("error", "Admin or teacher access required"));
-        }
-
         AssignmentSubmission submission = submissionRepo.findById(submissionId).orElse(null);
         if (submission == null) {
             Map<String, String> error = new HashMap<>();
             error.put("error", "Submission not found");
-            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);    
+            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
         }
-
+        // Staff can grade anything. A student can grade a submission only when
+        // they were named a grader on it or on its assignment (team teach).
+        if (!canGradeSubmission(currentUser, submission)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Teacher, admin, or an assigned grader is required"));
+        }
         // we have a correct submission
         submission.setGrade(grade);
         submission.setFeedback(feedback);
@@ -452,9 +452,10 @@ public class AssignmentSubmissionAPIController {
         List<AssignmentSubmissionReturnDto> submissionsReturn;
 
         if (!(user.hasRoleWithName("ROLE_TEACHER") || user.hasRoleWithName("ROLE_ADMIN"))) {
-            // if they aren't a teacher or admin, only let them see submissions they are assigned to grade
+            // if they aren't a teacher or admin, only let them see submissions they are assigned to grade,
+            // on the submission itself or on its assignment
             submissionsReturn = submissions.stream()
-                .filter(submission -> submission.getAssignedGraders().contains(user))
+                .filter(submission -> submission.isAssignedGrader(user))
                 .map(AssignmentSubmissionReturnDto::new)
                 .collect(Collectors.toList());
         } else {
@@ -557,6 +558,14 @@ public class AssignmentSubmissionAPIController {
 
     private boolean canGradeOrDeleteSubmission(Person currentUser) {
         return currentUser.hasRoleWithName("ROLE_ADMIN") || currentUser.hasRoleWithName("ROLE_TEACHER");
+    }
+
+    /**
+     * Grading is wider than summary and delete: staff, plus anyone named a
+     * grader on the submission or on its assignment.
+     */
+    private boolean canGradeSubmission(Person currentUser, AssignmentSubmission submission) {
+        return canGradeOrDeleteSubmission(currentUser) || submission.isAssignedGrader(currentUser);
     }
 
     private Person getAuthenticatedPerson(UserDetails userDetails) {

@@ -74,6 +74,26 @@ public class AssignmentSubmission {
 
     private Boolean isLate;
     
+    /**
+     * True when the person may grade this submission because they were named
+     * a grader, either on this submission or on its assignment. Compares by id,
+     * because two Person objects for the same row are not always the same
+     * instance. Staff roles are checked by the caller, not here.
+     */
+    public boolean isAssignedGrader(com.open.spring.mvc.person.Person person) {
+        if (person == null || person.getId() == null) {
+            return false;
+        }
+        java.util.List<com.open.spring.mvc.person.Person> onSubmission = this.assignedGraders;
+        if (onSubmission != null && onSubmission.stream().anyMatch(g -> g != null && person.getId().equals(g.getId()))) {
+            return true;
+        }
+        if (this.assignment == null || this.assignment.getAssignedGraders() == null) {
+            return false;
+        }
+        return this.assignment.getAssignedGraders().stream().anyMatch(g -> g != null && person.getId().equals(g.getId()));
+    }
+
     public AssignmentSubmission(Assignment assignment, Submitter submitter, Map<String, Object> content, String comment, boolean isLate) {
         this.assignment = assignment;
         this.submitter = submitter;
