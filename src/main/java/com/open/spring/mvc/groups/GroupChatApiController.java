@@ -24,20 +24,22 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @RestController
+@org.springframework.transaction.annotation.Transactional(readOnly = true)
 @RequestMapping("/api/groups/chat")
-@CrossOrigin
 public class GroupChatApiController {
 
     private final GroupChatService groupChatService;
     private final GroupChatRealtimeService realtimeService;
     private final GroupsJpaRepository groupsRepository;
     private final PersonJpaRepository personRepository;
+    private final DirectMessageAccess access;
 
     public GroupChatApiController(
             GroupChatService groupChatService,
             GroupChatRealtimeService realtimeService,
             GroupsJpaRepository groupsRepository,
-            PersonJpaRepository personRepository) {
+            PersonJpaRepository personRepository, DirectMessageAccess access) {
+        this.access = access;
         this.groupChatService = groupChatService;
         this.realtimeService = realtimeService;
         this.groupsRepository = groupsRepository;
@@ -52,24 +54,6 @@ public class GroupChatApiController {
         private String base64Data;
     }
 
-    // --- Auth helpers (commented out) ---
-    // private String getCurrentUsername() {
-    //     Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-    //     if (auth == null || !auth.isAuthenticated()) {
-    //         return null;
-    //     }
-    //     String name = auth.getName();
-    //     if (name == null || name.isBlank() || "anonymousUser".equals(name)) {
-    //         return null;
-    //     }
-    //     return name;
-    // }
-    //
-    // private boolean isMember(Groups group, String uid) {
-    //     return group.getGroupMembers().stream()
-    //             .anyMatch(member -> uid.equals(member.getUid()));
-    // }
-
     @GetMapping("/analytics/{personId}")
     public ResponseEntity<?> getUserAnalytics(@PathVariable Long personId) {
         Optional<Person> personOpt = personRepository.findById(personId);
@@ -78,7 +62,7 @@ public class GroupChatApiController {
         }
 
         Person person = personOpt.get();
-        List<Groups> groups = groupsRepository.findGroupsByPersonId(personId);
+        List<Groups> groups = groupsRepository.findGroupsByPersonId(personId).stream().filter(group -> !DmNaming.isDirect(group)).toList();
 
         Map<String, Object> analytics = groupChatService.getUserAnalytics(person.getName(), groups);
         analytics.put("personId", personId);
@@ -93,14 +77,8 @@ public class GroupChatApiController {
         if (groupOpt.isEmpty()) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+        access.requireChatAccess(groupOpt.get());
 
-        // String currentUsername = getCurrentUsername();
-        // if (currentUsername == null) {
-        //     return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
-        // }
-        // if (!isMember(groupOpt.get(), currentUsername)) {
-        //     return new ResponseEntity<>(HttpStatus.FORBIDDEN);
-        // }
 
         String groupName = groupOpt.get().getName();
         List<GroupChatMessage> messages = groupChatService.getMessages(groupName);
@@ -115,15 +93,13 @@ public class GroupChatApiController {
         if (groupOpt.isEmpty()) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+        access.requireChatAccess(groupOpt.get());
 
-        // String currentUsername = getCurrentUsername();
-        // if (currentUsername == null) {
-        //     return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
-        // }
-        // if (!isMember(groupOpt.get(), currentUsername)) {
-        //     return new ResponseEntity<>(HttpStatus.FORBIDDEN);
-        // }
 
+        if (DmNaming.isDirect(groupOpt.get())) {
+            DirectMessageContent.validate(message == null ? null : message.getMessage(), message == null ? null : message.getImage());
+            message.setName(access.currentPerson().getUid());
+        }
         if (message == null || message.getName() == null || message.getMessage() == null) {
             return new ResponseEntity<>("name and message are required", HttpStatus.BAD_REQUEST);
         }
@@ -147,7 +123,14 @@ public class GroupChatApiController {
         if (groupOpt.isEmpty()) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+        access.requireChatAccess(groupOpt.get());
 
+        if (DmNaming.isDirect(groupOpt.get())) {
+            String uid = access.currentPerson().getUid();
+            boolean owned = groupChatService.getMessages(groupOpt.get().getName()).stream()
+                    .anyMatch(message -> messageId.equals(message.getId()) && uid.equals(message.getName()));
+            if (!owned) return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
         try {
             realtimeService.deleteMessage(groupId, messageId);
         } catch (RuntimeException ex) {
@@ -163,14 +146,8 @@ public class GroupChatApiController {
         if (groupOpt.isEmpty()) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+        access.requireChatAccess(groupOpt.get());
 
-        // String currentUsername = getCurrentUsername();
-        // if (currentUsername == null) {
-        //     return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
-        // }
-        // if (!isMember(groupOpt.get(), currentUsername)) {
-        //     return new ResponseEntity<>(HttpStatus.FORBIDDEN);
-        // }
 
         String groupName = groupOpt.get().getName();
         List<Map<String, String>> files = groupChatService.listSharedFiles(groupName);
@@ -185,19 +162,14 @@ public class GroupChatApiController {
         if (groupOpt.isEmpty()) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+        access.requireChatAccess(groupOpt.get());
 
-        // String currentUsername = getCurrentUsername();
-        // if (currentUsername == null) {
-        //     return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
-        // }
-        // if (!isMember(groupOpt.get(), currentUsername)) {
-        //     return new ResponseEntity<>(HttpStatus.FORBIDDEN);
-        // }
 
         if (request == null || request.getFilename() == null || request.getBase64Data() == null) {
             return new ResponseEntity<>("filename and base64Data are required", HttpStatus.BAD_REQUEST);
         }
 
+        if (DmNaming.isDirect(groupOpt.get())) DirectMessageContent.validateFile(request.getFilename(), request.getBase64Data());
         try {
             realtimeService.publishFile(groupId, null, request.getFilename(), request.getBase64Data());
             Map<String, String> response = new HashMap<>();

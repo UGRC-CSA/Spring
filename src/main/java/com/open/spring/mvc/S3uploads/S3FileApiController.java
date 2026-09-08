@@ -40,6 +40,9 @@ public class S3FileApiController {
             @RequestParam String filename,
             @RequestBody String base64Data) {
         
+        if (com.open.spring.mvc.groups.DmNaming.reserved(uid)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Use the private conversation's attachment endpoint");
+        }
         try {
             String result = fileHandler.uploadFile(base64Data, filename, uid);
             
@@ -82,6 +85,9 @@ public class S3FileApiController {
             @RequestParam String uid,
             @RequestParam String filename) {
         
+        if (com.open.spring.mvc.groups.DmNaming.reserved(uid)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Use the private conversation's attachment endpoint");
+        }
         try {
             String base64Data = fileHandler.decodeFile(uid, filename);
             
@@ -121,6 +127,9 @@ public class S3FileApiController {
      */
     @DeleteMapping("/delete/{uid}")
     public ResponseEntity<?> deleteUserFiles(@PathVariable String uid) {
+        if (com.open.spring.mvc.groups.DmNaming.reserved(uid)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Use the private conversation's attachment endpoint");
+        }
         try {
             boolean result = fileHandler.deleteFiles(uid);
             

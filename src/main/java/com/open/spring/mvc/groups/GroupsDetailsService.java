@@ -24,35 +24,35 @@ public class GroupsDetailsService {  // "implements" ties ModelRepo to Spring Se
     /* Groups Section */
 
     public List<Groups> listAll() {
-        return groupsJpaRepository.findAll();
+        return groupsJpaRepository.findAll().stream().filter(group -> !DmNaming.isDirect(group)).toList();
     }
 
     public List<Groups> listAllWithMembers() {
-        return groupsJpaRepository.findAllWithMembers();
+        return groupsJpaRepository.findAllWithMembers().stream().filter(group -> !DmNaming.isDirect(group)).toList();
     }
 
     public Groups get(long id) {
         Optional<Groups> groupOpt = groupsJpaRepository.findById(id);
-        return groupOpt.orElse(null);
+        return groupOpt.filter(group -> !DmNaming.isDirect(group)).orElse(null);
     }
 
     public List<Groups> findGroupsByPersonId(long personId) {
-        return groupsJpaRepository.findGroupsByPersonId(personId);
+        return groupsJpaRepository.findGroupsByPersonId(personId).stream().filter(group -> !DmNaming.isDirect(group)).toList();
     }
 
     public List<Groups> findGroupsByPersonIdWithMembers(long personId) {
-        return groupsJpaRepository.findGroupsByPersonIdWithMembers(personId);
+        return groupsJpaRepository.findGroupsByPersonIdWithMembers(personId).stream().filter(group -> !DmNaming.isDirect(group)).toList();
     }
 
     public List<Groups> searchByName(String searchTerm) {
-        return groupsJpaRepository.searchByName(searchTerm);
+        return groupsJpaRepository.searchByName(searchTerm).stream().filter(group -> !DmNaming.isDirect(group)).toList();
     }
 
     public List<Groups> searchByNameWithMembers(String searchTerm) {
-        return groupsJpaRepository.searchByNameWithMembers(searchTerm);
+        return groupsJpaRepository.searchByNameWithMembers(searchTerm).stream().filter(group -> !DmNaming.isDirect(group)).toList();
     }
 
     public void delete(long id) {
-        groupsJpaRepository.deleteById(id);
+        if (get(id) != null) groupsJpaRepository.deleteById(id);
     }
 }

@@ -37,6 +37,10 @@ public class Groups extends Submitter {
     private List<Person> groupMembers = new ArrayList<>();
 
     private String name;
+    // Null for ordinary groups. The database guarantees one conversation per pair.
+    @Column(name = "dm_key", unique = true)
+    @JsonIgnore
+    private String dmKey;
     private String period;
     private String course;
 

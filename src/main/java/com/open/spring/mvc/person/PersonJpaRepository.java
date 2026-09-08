@@ -27,6 +27,9 @@ import org.springframework.data.repository.query.Param;
  * When a method from this interface is called, the call is intercepted by a Spring Data JPA proxy, which directs the call to the appropriate method in the generated implementation.
  */
 public interface PersonJpaRepository extends JpaRepository<Person, Long> {
+    @Query("SELECT p FROM Person p WHERE p.id <> :self AND (LOWER(p.name) LIKE LOWER(CONCAT('%', :term, '%')) OR LOWER(p.uid) LIKE LOWER(CONCAT('%', :term, '%'))) ORDER BY p.name, p.id")
+    List<Person> searchMessageRecipients(@Param("self") Long self, @Param("term") String term,
+            org.springframework.data.domain.Pageable pageable);
 
     /**
      * Query methods defined by Spring Data JPA naming conventions.

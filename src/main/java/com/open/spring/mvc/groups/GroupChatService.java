@@ -13,7 +13,6 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.open.spring.mvc.S3uploads.S3FileHandler;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +24,7 @@ public class GroupChatService {
     private static final String MESSAGES_FILE = "messages-images/messages.jsonl";
     private static final String SHARED_FILES_PREFIX = "shared-files/";
 
-    private final S3FileHandler s3FileHandler;
+    private final ChatStorage s3FileHandler;
     private final ObjectMapper objectMapper;
 
     public void initGroupStorage(String groupName) {
@@ -61,6 +60,7 @@ public class GroupChatService {
         try {
             decoded = Base64.getDecoder().decode(base64Data);
         } catch (IllegalArgumentException e) {
+            if (DmNaming.reserved(groupName)) throw new IllegalStateException("Invalid conversation history", e);
             log.warn("Invalid base64 data for group {} messages.", groupName, e);
             return new ArrayList<>();
         }
@@ -79,18 +79,21 @@ public class GroupChatService {
                     GroupChatMessage msg = objectMapper.readValue(line, GroupChatMessage.class);
                     messages.add(msg);
                 } catch (Exception e) {
+                    if (DmNaming.reserved(groupName)) throw new IllegalStateException("Invalid conversation history", e);
                     log.warn("Skipping invalid message line for group {}: {}", groupName, line, e);
                 }
             }
         } catch (Exception e) {
+            if (DmNaming.reserved(groupName)) throw new IllegalStateException("Could not read conversation history", e);
             log.warn("Failed reading messages for group {}", groupName, e);
         }
 
         return messages;
     }
 
-    public List<GroupChatMessage> addMessage(String groupName, GroupChatMessage message) {
+    public synchronized List<GroupChatMessage> addMessage(String groupName, GroupChatMessage message) {
         List<GroupChatMessage> messages = getMessages(groupName);
+        if (DmNaming.reserved(groupName)) message.setDate(java.time.Instant.now().toString());
         messages.add(message);
 
         String jsonl = messages.stream()
@@ -104,7 +107,7 @@ public class GroupChatService {
         return messages;
     }
 
-    public void deleteMessage(String groupName, String messageId) {
+    public synchronized void deleteMessage(String groupName, String messageId) {
         if (messageId == null) return;
         List<GroupChatMessage> messages = getMessages(groupName);
         boolean removed = messages.removeIf(m -> messageId.equals(m.getId()));
@@ -199,8 +202,7 @@ public class GroupChatService {
         try {
             return objectMapper.writeValueAsString(message);
         } catch (Exception e) {
-            log.warn("Failed to serialize message: {}", message, e);
-            return "{}";
+            throw new IllegalStateException("Could not serialize chat message", e);
         }
     }
 }

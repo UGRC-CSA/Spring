@@ -46,7 +46,7 @@ public class GroupChatRealtimeService {
                 .sender(sender)
                 .message(message)
                 .image(image)
-                .date(date)
+                .date(persisted.getDate())
                 .build();
 
         broadcastToGroup(groupId, event);

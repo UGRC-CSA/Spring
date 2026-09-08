@@ -39,6 +39,7 @@ public class MvcConfig implements WebMvcConfigurer {
             .allowedOriginPatterns(
                 "https://*.opencodingsociety.com",
                 "https://open-coding-society.github.io",
+                "https://ugrc-csa.github.io",
                 "http://127.0.0.1:4500",
                 "http://127.0.0.1:4599",
                 "http://127.0.0.1:4600",

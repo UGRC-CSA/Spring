@@ -103,6 +103,7 @@ public class GroupsApiController {
             List<Map<String, Object>> result = new ArrayList<>();
 
             for (Groups group : groups) {
+                if (DmNaming.isDirect(group)) continue;
                 result.add(buildGroupResponse(group));
             }
 
@@ -119,7 +120,7 @@ public class GroupsApiController {
     @Transactional(readOnly = true)
     public ResponseEntity<Map<String, Object>> getGroupById(@PathVariable Long id) {
         try {
-            Optional<Groups> groupOpt = groupsRepository.findById(id);
+            Optional<Groups> groupOpt = groupsRepository.findById(id).filter(group -> !DmNaming.isDirect(group));
             if (groupOpt.isEmpty()) {
                 return new ResponseEntity<>(HttpStatus.NOT_FOUND);
             }
@@ -145,6 +146,7 @@ public class GroupsApiController {
             List<Map<String, Object>> result = new ArrayList<>();
 
             for (Groups group : groups) {
+                if (DmNaming.isDirect(group)) continue;
                 result.add(buildGroupResponse(group));
             }
 
@@ -174,6 +176,7 @@ public class GroupsApiController {
             List<Map<String, Object>> result = new ArrayList<>();
 
             for (Groups group : groups) {
+                if (DmNaming.isDirect(group)) continue;
                 result.add(buildGroupResponse(group));
             }
 
@@ -193,7 +196,7 @@ public class GroupsApiController {
     @Transactional
     public ResponseEntity<Map<String, Object>> createGroup(@RequestBody GroupCreateDto dto) {
         try {
-            if (dto.getName() == null || dto.getName().isEmpty()) {
+            if (dto.getName() == null || dto.getName().isBlank() || DmNaming.reserved(dto.getName())) {
                 return new ResponseEntity<>(
                     Map.of("error", "Group name is required"),
                     HttpStatus.BAD_REQUEST
@@ -258,6 +261,10 @@ public class GroupsApiController {
 
             for (GroupCreateDto groupDto : dto.getGroups()) {
                 try {
+                    if (groupDto.getName() == null || groupDto.getName().isBlank() || DmNaming.reserved(groupDto.getName())) {
+                        errors.add("Invalid or reserved group name");
+                        continue;
+                    }
                     if (groupsRepository.findByName(groupDto.getName()).isPresent()) {
                         errors.add("Group with name '" + groupDto.getName() + "' already exists");
                         continue;
@@ -316,7 +323,7 @@ public class GroupsApiController {
             @PathVariable Long id,
             @RequestBody GroupUpdateDto dto) {
         try {
-            Optional<Groups> groupOpt = groupsRepository.findById(id);
+            Optional<Groups> groupOpt = groupsRepository.findById(id).filter(group -> !DmNaming.isDirect(group));
             if (groupOpt.isEmpty()) {
                 return new ResponseEntity<>(
                     Map.of("error", "Group not found"),
@@ -327,6 +334,7 @@ public class GroupsApiController {
             Groups group = groupOpt.get();
 
             if (dto.getName() != null && !dto.getName().isEmpty()) {
+                if (DmNaming.reserved(dto.getName())) return ResponseEntity.badRequest().body(Map.of("error", "Reserved group name"));
                 group.setName(dto.getName());
             }
             if (dto.getPeriod() != null) {
@@ -354,7 +362,7 @@ public class GroupsApiController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> deleteGroup (@PathVariable Long id) {
         try {
-            Optional<Groups> groupOpt = groupsRepository.findById(id);
+            Optional<Groups> groupOpt = groupsRepository.findById(id).filter(group -> !DmNaming.isDirect(group));
             if (groupOpt.isEmpty()) {
                 return new ResponseEntity<>(
                     Map.of("error", "Group not found"),
@@ -386,7 +394,7 @@ public class GroupsApiController {
             @PathVariable Long id,
             @PathVariable Long personId) {
         try {
-            Optional<Groups> groupOpt = groupsRepository.findById(id);
+            Optional<Groups> groupOpt = groupsRepository.findById(id).filter(group -> !DmNaming.isDirect(group));
             if (groupOpt.isEmpty()) {
                 return new ResponseEntity<>(
                     Map.of("error", "Group not found"),
@@ -433,7 +441,7 @@ public class GroupsApiController {
             @PathVariable Long id,
             @PathVariable Long personId) {
         try {
-            Optional<Groups> groupOpt = groupsRepository.findById(id);
+            Optional<Groups> groupOpt = groupsRepository.findById(id).filter(group -> !DmNaming.isDirect(group));
             if (groupOpt.isEmpty()) {
                 return new ResponseEntity<>(
                     Map.of("error", "Group not found"),
@@ -475,7 +483,7 @@ public class GroupsApiController {
     @GetMapping("/{id}/grades")
     @Transactional(readOnly = true)
     public ResponseEntity<?> getGroupGrades(@PathVariable Long id) {
-        Optional<Groups> groupOpt = groupsRepository.findById(id);
+        Optional<Groups> groupOpt = groupsRepository.findById(id).filter(group -> !DmNaming.isDirect(group));
         if (groupOpt.isEmpty()) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 
         return new ResponseEntity<>(groupOpt.get().getGradesJson(), HttpStatus.OK);
@@ -489,7 +497,7 @@ public class GroupsApiController {
     @Transactional
     public ResponseEntity<?> putGroupGrades(@PathVariable Long id,
                                         @RequestBody List<Map<String, Object>> grades) {
-        Optional<Groups> groupOpt = groupsRepository.findById(id);
+        Optional<Groups> groupOpt = groupsRepository.findById(id).filter(group -> !DmNaming.isDirect(group));
         if (groupOpt.isEmpty()) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 
         
@@ -508,7 +516,7 @@ public class GroupsApiController {
     @Transactional
     public ResponseEntity<?> addGroupGrade(@PathVariable Long id,
                                         @RequestBody Map<String, Object> gradeEntry) {
-        Optional<Groups> groupOpt = groupsRepository.findById(id);
+        Optional<Groups> groupOpt = groupsRepository.findById(id).filter(group -> !DmNaming.isDirect(group));
         if (groupOpt.isEmpty()) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 
         Groups group = groupOpt.get();
@@ -573,7 +581,7 @@ public class GroupsApiController {
     @DeleteMapping("/{id}/grades")
     @Transactional
     public ResponseEntity<?> clearGroupGrades(@PathVariable Long id) {
-        Optional<Groups> groupOpt = groupsRepository.findById(id);
+        Optional<Groups> groupOpt = groupsRepository.findById(id).filter(group -> !DmNaming.isDirect(group));
         if (groupOpt.isEmpty()) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 
         Groups group = groupOpt.get();

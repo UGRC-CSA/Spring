@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface GroupsJpaRepository extends JpaRepository<Groups, Long> {
+    Optional<Groups> findByDmKey(String dmKey);
     
     // Find a group by its ID
     Optional<Groups> findById(Long id);

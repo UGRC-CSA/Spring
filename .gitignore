@@ -4,6 +4,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 .env
+volumes/dm-preview.db*
+volumes/dm-preview-chat/
+volumes/chat-local/
 volumes/sqlite.db
 volumes/sqlite.db-shm
 volumes/sqlite.db-wal

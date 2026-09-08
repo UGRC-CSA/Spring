@@ -27,6 +27,8 @@ public class StartupService {
 
             // Ensure S3 storage exists for each group
             for (Groups group : groups) {
+                // DMs create storage on their first send; never probe-and-overwrite private history.
+                if (com.open.spring.mvc.groups.DmNaming.isDirect(group)) continue;
                 groupChatService.ensureGroupStorageExists(group.getName());
             }
         };

@@ -22,6 +22,7 @@ public class GroupChatWebSocketController {
 
     private final GroupChatRealtimeService realtimeService;
     private final GroupChatPresenceService presenceService;
+    private final DirectMessageAccess access;
 
     @MessageMapping("/groups.chat")
     public void handleGroupEvent(@Payload GroupChatEvent event,
@@ -32,7 +33,14 @@ public class GroupChatWebSocketController {
         }
 
         Long groupId = event.getGroupId();
+        if (groupId == null) return;
+        Groups group = access.requireChatAccess(groupId, principal);
         String sender = resolveSender(event, principal);
+        if (DmNaming.isDirect(group)) {
+            sender = access.person(principal).getUid();
+            if ("sendMessage".equals(event.getContext())) DirectMessageContent.validate(event.getMessage(), event.getImage());
+            if ("sendFile".equals(event.getContext())) DirectMessageContent.validateFile(event.getFilename(), event.getBase64Data());
+        }
 
         switch (event.getContext()) {
             case "joinGroup" -> {

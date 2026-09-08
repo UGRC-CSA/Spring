@@ -47,6 +47,18 @@ public class S3FileHandler implements FileHandler {
 
     private S3Client s3Client;
 
+    // Missing objects are empty histories; transport/permission failures must never erase a DM history.
+    public String decodePrivateChatFile(String group, String filename) {
+        if (s3Client == null) throw new IllegalStateException("Chat storage is unavailable");
+        try {
+            byte[] data = s3Client.getObjectAsBytes(GetObjectRequest.builder()
+                    .bucket(bucketName).key(generateKey(group, filename)).build()).asByteArray();
+            return Base64.getEncoder().encodeToString(data);
+        } catch (software.amazon.awssdk.services.s3.model.NoSuchKeyException missing) {
+            return null;
+        }
+    }
+
     @PostConstruct
     public void init() {
         if (isBlank(accessKey) || isBlank(secretKey) || isBlank(region) || isBlank(bucketName)) {

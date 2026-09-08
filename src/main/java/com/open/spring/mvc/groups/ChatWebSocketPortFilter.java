@@ -35,7 +35,8 @@ public class ChatWebSocketPortFilter extends OncePerRequestFilter {
                 ? requestUri.substring(contextPath.length())
                 : requestUri;
 
-        boolean isChatWebSocketPath = path.equals(CHAT_ENDPOINT) || path.startsWith(CHAT_ENDPOINT + "/");
+        boolean isChatWebSocketPath = path.equals(CHAT_ENDPOINT) || path.startsWith(CHAT_ENDPOINT + "/")
+                || path.equals("/api/ws-chat") || path.startsWith("/api/ws-chat/");
         boolean isOnSocketPort = request.getLocalPort() == socketPort;
 
         // Port 8589 is dedicated to the chat websocket handshake/SockJS routes.

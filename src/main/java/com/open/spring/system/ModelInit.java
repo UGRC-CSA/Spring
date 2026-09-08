@@ -64,6 +64,7 @@ import com.open.spring.mvc.rpg.games.UnifiedGameRepository;
 
 
 @Component
+@org.springframework.context.annotation.Profile("!dm-preview")
 @Configuration // Scans Application for ModelInit Bean, this detects CommandLineRunner
 public class ModelInit {
     @Autowired JokesJpaRepository jokesRepo;
