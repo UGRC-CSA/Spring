@@ -8,6 +8,8 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,9 +35,30 @@ public class GeminiController {
     @Autowired
     private GeminiRepository geminiRepository;
 
-    private final Dotenv dotenv = Dotenv.load();
-    private final String geminiApiKey = dotenv.get("GEMINI_API_KEY");
-    private final String geminiApiUrl = dotenv.get("GEMINI_API_URL");
+    // The key and endpoint come from application.properties (GEMINI_API_KEY,
+    // GEMINI_MODEL or GEMINI_API_URL in the environment). A .env file next to
+    // the app still works as the fallback, as before.
+    @Value("${gemini.api.key:}")
+    private String geminiApiKey;
+
+    @Value("${gemini.api.url:}")
+    private String geminiApiUrl;
+
+    private Dotenv dotenv;
+
+    private Dotenv env() {
+        if (dotenv == null) {
+            dotenv = Dotenv.configure().ignoreIfMissing().load();
+        }
+        return dotenv;
+    }
+
+    /** The property when it is set, otherwise the .env value, otherwise null. */
+    private String setting(String value, String envName) {
+        if (value != null && !value.isBlank()) return value;
+        String fromEnv = env().get(envName);
+        return fromEnv != null && !fromEnv.isBlank() ? fromEnv : null;
+    }
 
     @Data
     @NoArgsConstructor
@@ -56,6 +79,17 @@ public class GeminiController {
             if (question == null || answer == null) {
                 return ResponseEntity.badRequest()
                         .body(Map.of("error", "Missing question or answer"));
+            }
+
+            String apiKey = setting(geminiApiKey, "GEMINI_API_KEY");
+            String apiUrl = setting(geminiApiUrl, "GEMINI_API_URL");
+            if (apiKey == null) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(Map.of("error", "The Gemini API key is not set on the server (GEMINI_API_KEY)."));
+            }
+            if (apiUrl == null) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(Map.of("error", "The Gemini endpoint is not set on the server (GEMINI_API_URL or GEMINI_MODEL)."));
             }
 
             // Build the grading prompt
@@ -92,7 +126,7 @@ public class GeminiController {
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             HttpEntity<String> httpRequest = new HttpEntity<>(jsonPayload, headers);
-            String fullUrl = geminiApiUrl + "?key=" + geminiApiKey;
+            String fullUrl = apiUrl + "?key=" + apiKey;
 
             // Send POST request to Gemini API
             RestTemplate restTemplate = new RestTemplate();

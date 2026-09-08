@@ -130,10 +130,13 @@ MY_EMAIL=jmort1021@gmail.com
 jwt.cookie.secure=false
 jwt.cookie.same-site=Lax
 
-# API Keys (optional - defaults exist in application.properties)
+# API Keys (optional - defaults exist in application.properties, except the Gemini key)
 GAMIFY_API_URL=https://api.openai.com/v1/chat/completions
 GAMIFY_API_KEY=your-openai-api-key-here
+# Required for the AI graders. There is no default key.
 GEMINI_API_KEY=your-gemini-api-key-here
+# Optional: the Gemini model (default gemini-2.5-flash), or a full endpoint in GEMINI_API_URL
+# GEMINI_MODEL=gemini-2.5-flash
 GITHUB_API_TOKEN=your-github-token-here
 
 # Email Configuration (optional - overrides application.properties)

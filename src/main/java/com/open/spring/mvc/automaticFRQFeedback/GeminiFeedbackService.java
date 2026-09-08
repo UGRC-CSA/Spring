@@ -31,7 +31,7 @@ public class GeminiFeedbackService {
     @Value("${gemini.api.key}")
     private String apiKey;
 
-    @Value("${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent}")
+    @Value("${gemini.api.url}")
     private String apiUrl;
 
     private final RestTemplate restTemplate;
