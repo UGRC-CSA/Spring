@@ -55,7 +55,7 @@ public class GroupChatWebSocketController {
                 }
                 ensureJoined(sessionId, groupId, sender);
                 try {
-                    realtimeService.publishMessage(groupId, sender, event.getMessage(), event.getImage());
+                    realtimeService.publishMessage(groupId, sender, event.getMessage(), event.getImage(), event.getDate());
                 } catch (RuntimeException ex) {
                     realtimeService.publishError(groupId, sender, ex.getMessage());
                 }

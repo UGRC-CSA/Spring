@@ -1,6 +1,7 @@
 package com.open.spring.mvc.groups;
 
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.Optional;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -23,9 +24,18 @@ public class GroupChatRealtimeService {
     private final SimpMessagingTemplate messagingTemplate;
 
     public GroupChatEvent publishMessage(Long groupId, String sender, String message, String image) {
+        return publishMessage(groupId, sender, message, image, null);
+    }
+
+    /**
+     * @param requestedDate caller-supplied ISO-8601 timestamp (e.g. from a client republishing
+     *                      history that predates the live backend). Used as-is when it parses to a
+     *                      non-future instant; otherwise falls back to now(), same as before.
+     */
+    public GroupChatEvent publishMessage(Long groupId, String sender, String message, String image, String requestedDate) {
         Groups group = getGroupOrThrow(groupId);
 
-        String date = Instant.now().toString();
+        String date = resolveDate(requestedDate);
         GroupChatMessage persisted = new GroupChatMessage(sender, message, date, image);
         groupChatService.addMessage(group.getName(), persisted);
 
@@ -112,6 +122,18 @@ public class GroupChatRealtimeService {
 
     private void broadcastToGroup(Long groupId, GroupChatEvent event) {
         messagingTemplate.convertAndSend(GROUP_TOPIC_PREFIX + groupId, event);
+    }
+
+    private String resolveDate(String requestedDate) {
+        if (requestedDate == null || requestedDate.isBlank()) {
+            return Instant.now().toString();
+        }
+        try {
+            Instant parsed = Instant.parse(requestedDate.trim());
+            return parsed.isAfter(Instant.now()) ? Instant.now().toString() : parsed.toString();
+        } catch (DateTimeParseException ex) {
+            return Instant.now().toString();
+        }
     }
 
     private Groups getGroupOrThrow(Long groupId) {
