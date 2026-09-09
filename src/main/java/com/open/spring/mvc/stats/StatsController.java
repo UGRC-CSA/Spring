@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -25,7 +26,14 @@ public class StatsController {
     @Autowired
     private StatsRepository statsRepository;
 
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyAwUorzifmPEIX6M74Kd_as-C-7Ih6UyLs";
+    // The key and endpoint come from application.properties (GEMINI_API_KEY,
+    // GEMINI_MODEL or GEMINI_API_URL in the environment), the same settings
+    // the FRQ grader uses. There is no key in the code.
+    @Value("${gemini.api.key:}")
+    private String geminiApiKey;
+
+    @Value("${gemini.api.url:}")
+    private String geminiApiUrl;
     private static final double MIN_GRADE = 0.55;
     private static final double MAX_GRADE = 0.9;
     private final RestTemplate restTemplate = new RestTemplate();
@@ -145,6 +153,8 @@ public class StatsController {
         Double gradeScore;
         try {
             gradeScore = requestGradeFromGemini(gradeRequest.getQuestion(), gradeRequest.getResponse());
+        } catch (GeminiNotConfigured ex) {
+            return new ResponseEntity<>(HttpStatus.SERVICE_UNAVAILABLE);
         } catch (Exception ex) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -231,7 +241,18 @@ public class StatsController {
                 HttpStatus.OK);
     }
 
+    /** Thrown when the server has no Gemini key or endpoint; the caller answers 503. */
+    static class GeminiNotConfigured extends IllegalStateException {
+        GeminiNotConfigured(String message) { super(message); }
+    }
+
     private Double requestGradeFromGemini(String question, String response) throws Exception {
+        if (geminiApiKey == null || geminiApiKey.isBlank()) {
+            throw new GeminiNotConfigured("The Gemini API key is not set on the server (GEMINI_API_KEY).");
+        }
+        if (geminiApiUrl == null || geminiApiUrl.isBlank()) {
+            throw new GeminiNotConfigured("The Gemini endpoint is not set on the server (GEMINI_API_URL or GEMINI_MODEL).");
+        }
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
@@ -247,7 +268,7 @@ public class StatsController {
         String payload = objectMapper.writeValueAsString(requestBody);
 
         HttpEntity<String> requestEntity = new HttpEntity<>(payload, headers);
-        ResponseEntity<String> geminiResponse = restTemplate.postForEntity(GEMINI_API_URL, requestEntity, String.class);
+        ResponseEntity<String> geminiResponse = restTemplate.postForEntity(geminiApiUrl + "?key=" + geminiApiKey, requestEntity, String.class);
 
         if (!geminiResponse.getStatusCode().is2xxSuccessful() || geminiResponse.getBody() == null) {
             throw new IllegalStateException("Gemini API call failed");
