@@ -129,7 +129,7 @@ public class GroupChatApiController {
         }
 
         try {
-            realtimeService.publishMessage(groupId, message.getName(), message.getMessage(), message.getImage());
+            realtimeService.publishMessage(groupId, message.getName(), message.getMessage(), message.getImage(), message.getDate());
         } catch (RuntimeException ex) {
             return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
         }
