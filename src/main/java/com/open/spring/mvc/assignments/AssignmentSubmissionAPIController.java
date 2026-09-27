@@ -14,8 +14,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-// content is now Map<String,Object> — plain strings from old rows are handled by SubmissionContentConverter fallback
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,13 +26,13 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.open.spring.mvc.S3uploads.FileHandler;
 import com.open.spring.mvc.groups.GroupsJpaRepository;
@@ -58,6 +56,9 @@ public class AssignmentSubmissionAPIController {
 
     private Logger logger = LoggerFactory.getLogger(getClass());
 
+    private static final String MANAGE_DENIED_MESSAGE =
+            "You do not have permission to manage this submission";
+
     @Autowired
     private AssignmentSubmissionJPA submissionRepo;
 
@@ -72,6 +73,12 @@ public class AssignmentSubmissionAPIController {
 
     @Autowired
     private FileHandler fileHandler;
+
+    @Autowired
+    private AssignmentAiGradingService aiGradingService;
+
+    @Autowired
+    private AssignmentAuthorizationService assignmentAuthorizationService;
     
     /**
      * A DTO class for returning only necessary assignment submission details.
@@ -135,6 +142,11 @@ public class AssignmentSubmissionAPIController {
         public Map<String, Object> content;
         public String comment;
         public Boolean isLate;
+        public Integer technicalExcellence;
+        public Integer communication;
+        public Integer workHabits;
+        public Integer aiOrchestration;
+        public String selfAssessmentReflection;
     }
 
     /**
@@ -153,7 +165,7 @@ public class AssignmentSubmissionAPIController {
         
         // TODO: A better way to do this would be to have this be part of some sort of SubmitterService
         Submitter submitter;
-        if (submissionInfo.isGroup) {
+        if (Boolean.TRUE.equals(submissionInfo.isGroup)) {
             submitter = groupRepo.findById(submissionInfo.submitterId).orElse(null);
         } else {
             submitter = personRepo.findById(submissionInfo.submitterId).orElse(null);
@@ -164,10 +176,33 @@ public class AssignmentSubmissionAPIController {
             error.put("error", "Submitter not found");
             return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
         }
-        
+
+        String selfAssessmentError = AssignmentSubmission.validateSelfAssessment(
+                submissionInfo.technicalExcellence,
+                submissionInfo.communication,
+                submissionInfo.workHabits,
+                submissionInfo.aiOrchestration,
+                submissionInfo.selfAssessmentReflection);
+        if (selfAssessmentError != null) {
+            return new ResponseEntity<>(Map.of("error", selfAssessmentError), HttpStatus.BAD_REQUEST);
+        }
+
         if (assignment != null) {
+            if (!hasSubmissionType(submissionInfo.content, assignment)) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Submission content type does not match the assignment type"));
+            }
+            String linkValidationError = validateLinkContent(submissionInfo.content);
+            if (linkValidationError != null) {
+                return ResponseEntity.badRequest().body(Map.of("error", linkValidationError));
+            }
             AssignmentSubmission submission = new AssignmentSubmission(assignment, submitter, submissionInfo.content, submissionInfo.comment, submissionInfo.isLate);
+            submission.setTechnicalExcellence(submissionInfo.technicalExcellence);
+            submission.setCommunication(submissionInfo.communication);
+            submission.setWorkHabits(submissionInfo.workHabits);
+            submission.setAiOrchestration(submissionInfo.aiOrchestration);
+            submission.setSelfAssessmentReflection(submissionInfo.selfAssessmentReflection);
             AssignmentSubmission savedSubmission = submissionRepo.save(submission);
+            savedSubmission = tryAutoGrade(savedSubmission);
             return new ResponseEntity<>(new AssignmentSubmissionReturnDto(savedSubmission), HttpStatus.CREATED);
         }
         Map<String, String> error = new HashMap<>();
@@ -184,6 +219,11 @@ public class AssignmentSubmissionAPIController {
         public Map<String, Object> content;
         public String comment;
         public Boolean isLate;
+        public Integer technicalExcellence;
+        public Integer communication;
+        public Integer workHabits;
+        public Integer aiOrchestration;
+        public String selfAssessmentReflection;
     }
 
     /**
@@ -225,8 +265,22 @@ public class AssignmentSubmissionAPIController {
                 return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
             }
 
+            if (!hasSubmissionType(requestData.content, assignment)) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Submission content type does not match the assignment type"));
+            }
+            String linkValidationError = validateLinkContent(requestData.content);
+            if (linkValidationError != null) {
+                return ResponseEntity.badRequest().body(Map.of("error", linkValidationError));
+            }
+
             AssignmentSubmission submission = new AssignmentSubmission(assignment, submitter, requestData.content, requestData.comment,requestData.isLate);
+            submission.setTechnicalExcellence(requestData.technicalExcellence);
+            submission.setCommunication(requestData.communication);
+            submission.setWorkHabits(requestData.workHabits);
+            submission.setAiOrchestration(requestData.aiOrchestration);
+            submission.setSelfAssessmentReflection(requestData.selfAssessmentReflection);
             AssignmentSubmission savedSubmission = submissionRepo.save(submission);
+            savedSubmission = tryAutoGrade(savedSubmission);
             return new ResponseEntity<>(new AssignmentSubmissionReturnDto(savedSubmission), HttpStatus.CREATED);
         }
         Map<String, String> error = new HashMap<>();
@@ -270,6 +324,10 @@ public class AssignmentSubmissionAPIController {
 
         String normalizedContentType = contentType == null ? "" : contentType.trim().toLowerCase(Locale.ROOT);
         Map<String, Object> updatedContent;
+
+        if (!isAllowedSubmissionType(submission.getAssignment(), normalizedContentType)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Submission content type does not match the assignment type"));
+        }
 
         if ("link".equals(normalizedContentType)) {
             if (url == null || url.trim().isEmpty()) {
@@ -333,16 +391,16 @@ public class AssignmentSubmissionAPIController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Authentication required"));
         }
-        if (!canGradeOrDeleteSubmission(currentUser)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("error", "Admin or teacher access required"));
-        }
 
         AssignmentSubmission submission = submissionRepo.findById(submissionId).orElse(null);
         if (submission == null) {
             Map<String, String> error = new HashMap<>();
             error.put("error", "Submission not found");
             return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);    
+        }
+        if (!canManageSubmission(currentUser, submission)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", MANAGE_DENIED_MESSAGE));
         }
 
         // we have a correct submission
@@ -351,6 +409,53 @@ public class AssignmentSubmissionAPIController {
         AssignmentSubmission savedSubmission = submissionRepo.save(submission);
         return ResponseEntity.ok(new AssignmentSubmissionReturnDto(savedSubmission));
     }
+
+    @PostMapping("/ai-grade/{submissionId}")
+    @Transactional
+    public ResponseEntity<?> aiGradeSubmission(
+            @PathVariable Long submissionId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Person currentUser = getAuthenticatedPerson(userDetails);
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Authentication required"));
+        }
+        if (!assignmentAuthorizationService.isTeacherOrAdmin(currentUser)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Admin or teacher access required"));
+        }
+
+        AssignmentSubmission submission = submissionRepo.findById(submissionId).orElse(null);
+        if (submission == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Submission not found"));
+        }
+
+        try {
+            AssignmentAiGradingService.GradeResult result = aiGradingService.grade(submission);
+            if (!"graded".equals(result.status())) {
+                return ResponseEntity.unprocessableEntity().body(result);
+            }
+            applyAiGradeResult(submission, result);
+                AssignmentSubmission savedSubmission = submissionRepo.save(submission);
+                return ResponseEntity.ok(new AiGradeResponse(
+                    result.status(),
+                    result.score(),
+                    savedSubmission.getQualityScore(),
+                    savedSubmission.getFeedback(),
+                    new AssignmentSubmissionReturnDto(savedSubmission)));
+        } catch (Exception e) {
+            logger.error("AI grading failed for submission {}", submissionId, e);
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body(Map.of("status", "failed", "message", "The AI grader could not complete this submission: "
+                            + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage())));
+        }
+    }
+
+                public record AiGradeResponse(
+                    String status,
+                    Integer score,
+                    Integer qualityScore,
+                    String feedback,
+                    AssignmentSubmissionReturnDto submission) {
+                }
 
     /**
      * Persist an AI-generated summary for a submission (admin/teacher only).
@@ -372,15 +477,15 @@ public class AssignmentSubmissionAPIController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Authentication required"));
         }
-        if (!canGradeOrDeleteSubmission(currentUser)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("error", "Admin or teacher access required"));
-        }
 
         AssignmentSubmission submission = submissionRepo.findById(submissionId).orElse(null);
         if (submission == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "Submission not found"));
+        }
+        if (!canManageSubmission(currentUser, submission)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", MANAGE_DENIED_MESSAGE));
         }
 
         submission.setAiSummary(summary);
@@ -408,15 +513,15 @@ public class AssignmentSubmissionAPIController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Authentication required"));
         }
-        if (!canGradeOrDeleteSubmission(currentUser)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("error", "Admin or teacher access required"));
-        }
 
         AssignmentSubmission submission = submissionRepo.findById(submissionId).orElse(null);
         if (submission == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "Submission not found"));
+        }
+        if (!canManageSubmission(currentUser, submission)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", MANAGE_DENIED_MESSAGE));
         }
 
         submissionRepo.delete(submission);
@@ -555,8 +660,80 @@ public class AssignmentSubmissionAPIController {
                 .anyMatch(group -> Objects.equals(group.getId(), submitter.getId()));
     }
 
-    private boolean canGradeOrDeleteSubmission(Person currentUser) {
-        return currentUser.hasRoleWithName("ROLE_ADMIN") || currentUser.hasRoleWithName("ROLE_TEACHER");
+    /**
+     * Teachers and admins keep their existing reach; a creator may only manage submissions
+     * belonging to an assignment they own. The denial message is deliberately generic so a
+     * failed attempt never confirms anything about another assignment's submissions.
+     */
+    private boolean canManageSubmission(Person currentUser, AssignmentSubmission submission) {
+        return assignmentAuthorizationService.canManage(currentUser, submission.getAssignment());
+    }
+
+    private boolean hasSubmissionType(Map<String, Object> content, Assignment assignment) {
+        if (content == null) {
+            return false;
+        }
+        Object contentType = content.get("type");
+        return contentType != null && isAllowedSubmissionType(assignment, String.valueOf(contentType));
+    }
+
+    private boolean isAllowedSubmissionType(Assignment assignment, String contentType) {
+        return assignment != null
+                && assignment.getAssignmentType() != null
+                && contentType != null
+                && assignment.getAssignmentType().trim().equalsIgnoreCase(contentType.trim());
+    }
+
+    /**
+     * Rejects github_issue/code submissions whose url isn't actually a GitHub issue
+     * or Gist link, so a bad link is caught at submit time rather than only surfacing
+     * later as "not gradeable" once auto-grading runs.
+     */
+    private String validateLinkContent(Map<String, Object> content) {
+        if (content == null) {
+            return null;
+        }
+        String type = String.valueOf(content.getOrDefault("type", "")).trim();
+        String url = String.valueOf(content.getOrDefault("url", "")).trim();
+        if ("github_issue".equalsIgnoreCase(type)
+                && !AssignmentAiGradingService.isGithubIssueUrl(url)
+                && !AssignmentAiGradingService.isGithubBlobUrl(url)) {
+            return "A github_issue submission must be a public GitHub issue or file link";
+        }
+        if ("link".equalsIgnoreCase(type)
+                && (!AssignmentAiGradingService.isGithubIssueUrl(url)
+                && !AssignmentAiGradingService.isGithubBlobUrl(url))) {
+            return "A link submission must be a public GitHub issue or file link";
+        }
+        if ("code".equalsIgnoreCase(type) && !AssignmentAiGradingService.isGistUrl(url)) {
+            return "A code submission must include a valid Gist link";
+        }
+        return null;
+    }
+
+    /**
+     * Attempts to AI-grade a freshly created submission immediately, best-effort.
+     * Grading failures never fail the submission itself — the student's work is
+     * saved either way, ungraded if the AI grader can't produce a result.
+     */
+    private AssignmentSubmission tryAutoGrade(AssignmentSubmission submission) {
+        try {
+            AssignmentAiGradingService.GradeResult result = aiGradingService.grade(submission);
+            if ("graded".equals(result.status())) {
+                applyAiGradeResult(submission, result);
+                return submissionRepo.save(submission);
+            }
+        } catch (Exception e) {
+            logger.warn("Auto-grade failed for submission {}: {}", submission.getId(), e.getMessage());
+        }
+        return submission;
+    }
+
+    private void applyAiGradeResult(AssignmentSubmission submission, AssignmentAiGradingService.GradeResult result) {
+        submission.setQualityScore(result.score());
+        submission.setGrade(result.score().doubleValue());
+        submission.setFeedback(result.feedback());
+        submission.setAiSummary(result.feedback());
     }
 
     private Person getAuthenticatedPerson(UserDetails userDetails) {

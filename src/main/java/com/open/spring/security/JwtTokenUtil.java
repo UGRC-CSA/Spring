@@ -1,4 +1,5 @@
 package com.open.spring.security;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -13,6 +14,9 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import javax.crypto.*;
 
+import com.open.spring.mvc.person.Person;
+import com.open.spring.mvc.person.PersonJpaRepository;
+
 
 @Component
 public class JwtTokenUtil {
@@ -21,6 +25,9 @@ public class JwtTokenUtil {
 
 	@Value("${jwt.secret}")
 	private String secret;
+
+	@Autowired
+	private PersonJpaRepository personJpaRepository;
 
 	private SecretKey getSecretKey() {
 		byte[] ptsecret = Base64.getDecoder().decode(this.secret);
@@ -55,15 +62,21 @@ public class JwtTokenUtil {
 
 	// Generate token for user
 	public String generateToken(UserDetails userDetails, List<String> roles) {
-		// Create a map to store JWT claims, 
+		// Create a map to store JWT claims,
 		// ... a claim is information asserted about the logged in user
 		Map<String, Object> claims = new HashMap<>();
-		
+
 		// Add a custom claim to the JWT token,
-		// ... roles are added for the client/frontend to know what the user can do, 
+		// ... roles are added for the client/frontend to know what the user can do,
 		// ... adding roles to login avoides an extra request to the server
 		claims.put("roles", roles);
-		
+
+		// Stamp the token with the person's current tokenVersion so a later password
+		// change (which bumps it) invalidates this token on the next validateToken call,
+		// instead of it staying valid for the rest of its JWT_TOKEN_VALIDITY lifetime.
+		Person person = personJpaRepository.findByUid(userDetails.getUsername());
+		claims.put("tokenVersion", person != null && person.getTokenVersion() != null ? person.getTokenVersion() : 0L);
+
 		// Call doGenerateToken method to create the JWT token and set the standard claims
 		// "sub" (subject) will be the username of the user.
 		// "iat" (issued at) will be the current time.
@@ -86,6 +99,17 @@ public class JwtTokenUtil {
 	//validate token
 	public Boolean validateToken(String token, UserDetails userDetails) {
 		final String username = getUsernameFromToken(token);
-		return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+		if (!username.equals(userDetails.getUsername()) || isTokenExpired(token)) {
+			return false;
+		}
+
+		Long tokenVersionClaim = getClaimFromToken(token, claims -> claims.get("tokenVersion", Long.class));
+		long claimedVersion = tokenVersionClaim != null ? tokenVersionClaim : 0L;
+
+		Person person = personJpaRepository.findByUid(username);
+		long currentVersion = (person != null && person.getTokenVersion() != null) ? person.getTokenVersion() : 0L;
+
+		// A mismatch means the password changed since this token was issued.
+		return claimedVersion == currentVersion;
 	}
 }

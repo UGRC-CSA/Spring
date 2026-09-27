@@ -29,6 +29,11 @@ public class AssignmentSubmissionFileApiController {
             @RequestParam("username") String username,
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "notes", required = false) String notes,
+            @RequestParam(value = "technicalExcellence", required = false) Integer technicalExcellence,
+            @RequestParam(value = "communication", required = false) Integer communication,
+            @RequestParam(value = "workHabits", required = false) Integer workHabits,
+            @RequestParam(value = "aiOrchestration", required = false) Integer aiOrchestration,
+            @RequestParam(value = "selfAssessmentReflection", required = false) String selfAssessmentReflection,
             @AuthenticationPrincipal UserDetails userDetails) {
 
         try {
@@ -39,6 +44,11 @@ public class AssignmentSubmissionFileApiController {
                     username,
                     file,
                     notes,
+                    technicalExcellence,
+                    communication,
+                    workHabits,
+                    aiOrchestration,
+                    selfAssessmentReflection,
                     userDetails);
             return ResponseEntity.ok(response);
         } catch (AssignmentSubmissionUploadService.UploadException e) {

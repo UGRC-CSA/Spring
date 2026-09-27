@@ -119,6 +119,11 @@ USER_SID=0000003
 USER_PASSWORD=123Hop!
 USER_PFP=/images/hop.png
 
+# Trusted Pages assignment synchronization bot (use a unique local password)
+PAGES_BOT_UID=pages-bot
+PAGES_BOT_PASSWORD=replace-with-a-strong-local-password
+PAGES_BOT_EMAIL=pages-bot@example.com
+
 # Convience user defaults
 MY_NAME=John Mortensen
 MY_UID=jm1021

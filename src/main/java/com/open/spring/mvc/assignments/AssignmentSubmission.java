@@ -73,7 +73,19 @@ public class AssignmentSubmission {
     private Long assignmentid;
 
     private Boolean isLate;
-    
+
+    // ========== SELF-ASSESSMENT (required on every submission) ==========
+    // 1-5 ratings; range is enforced server-side in the controllers/upload
+    // service rather than with a DB constraint, so older rows (submitted
+    // before this feature existed) can keep these columns null.
+    private Integer technicalExcellence;
+    private Integer communication;
+    private Integer workHabits;
+    private Integer aiOrchestration;
+
+    @Column(columnDefinition = "text")
+    private String selfAssessmentReflection;
+
     public AssignmentSubmission(Assignment assignment, Submitter submitter, Map<String, Object> content, String comment, boolean isLate) {
         this.assignment = assignment;
         this.submitter = submitter;
@@ -88,5 +100,38 @@ public class AssignmentSubmission {
     // Getter for assignment_id (foreign key column)
     public Long getAssignmentId2() {
         return assignment != null ? assignment.getId() : null;
+    }
+
+    /**
+     * Validates the required self-assessment fields shared by every submission
+     * entry point. Returns a human-readable error message if something is
+     * missing or out of range, or null if the values are acceptable.
+     */
+    public static String validateSelfAssessment(
+            Integer technicalExcellence,
+            Integer communication,
+            Integer workHabits,
+            Integer aiOrchestration,
+            String selfAssessmentReflection) {
+        if (!isValidRating(technicalExcellence)) {
+            return "technicalExcellence is required and must be between 1 and 5";
+        }
+        if (!isValidRating(communication)) {
+            return "communication is required and must be between 1 and 5";
+        }
+        if (!isValidRating(workHabits)) {
+            return "workHabits is required and must be between 1 and 5";
+        }
+        if (!isValidRating(aiOrchestration)) {
+            return "aiOrchestration is required and must be between 1 and 5";
+        }
+        if (selfAssessmentReflection == null || selfAssessmentReflection.trim().isEmpty()) {
+            return "selfAssessmentReflection is required";
+        }
+        return null;
+    }
+
+    private static boolean isValidRating(Integer value) {
+        return value != null && value >= 1 && value <= 5;
     }
 }

@@ -1,11 +1,11 @@
 package com.open.spring.mvc.assignments;
 
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.Instant;
-import java.util.Base64;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -17,10 +17,11 @@ import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,11 +32,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.open.spring.mvc.S3uploads.FileHandler;
+import com.open.spring.mvc.assignments.AssignmentCourseSyncService.UnknownCourseException;
+import com.open.spring.mvc.assignments.AssignmentCreatorSyncService.UnknownCreatorException;
 import com.open.spring.mvc.groups.GroupsJpaRepository;
 import com.open.spring.mvc.person.Person;
 import com.open.spring.mvc.person.PersonJpaRepository;
@@ -68,13 +70,27 @@ public class AssignmentsApiController {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private AssignmentRubricService rubricService;
+
+    @Autowired
+    private AssignmentAuthorizationService assignmentAuthorizationService;
+
+    @Autowired
+    private AssignmentCreatorSyncService assignmentCreatorSyncService;
+
+    @Autowired
+    private AssignmentCourseSyncService assignmentCourseSyncService;
+
     @Getter
     @Setter
     public static class AssignmentDto {
         public Long id;
         public String name;
         public String type;
+        public String assignmentType;
         public String description;
+        public String aiRubric;
         public Double points;
         public String dueDate;
         public String timestamp;
@@ -83,12 +99,27 @@ public class AssignmentsApiController {
         public String resourceFilename;
         public String resourceStoragePath;
         public String resourceUploadedBy;
+        public String contentUrl;
+        public List<String> courseCodes;
+        /** Owner uids; null on endpoints that do not load the creator relationship. */
+        public List<String> creatorUids;
+
+        public AssignmentDto(
+                Assignment assignment,
+                List<String> creatorUids,
+                List<String> courseCodes) {
+            this(assignment);
+            this.creatorUids = creatorUids;
+            this.courseCodes = courseCodes;
+        }
 
         public AssignmentDto(Assignment assignment) {
             this.id = assignment.getId();
             this.name = assignment.getName();
             this.type = assignment.getType();
+            this.assignmentType = assignment.getAssignmentType();
             this.description = assignment.getDescription();
+            this.aiRubric = assignment.getAiRubric();
             this.points = assignment.getPoints();
             this.dueDate = assignment.getDueDate();
             this.timestamp = assignment.getTimestamp();
@@ -97,6 +128,7 @@ public class AssignmentsApiController {
             this.resourceFilename = assignment.getResourceFilename();
             this.resourceStoragePath = assignment.getResourceStoragePath();
             this.resourceUploadedBy = extractResourceUploader(assignment);
+            this.contentUrl = assignment.getContentUrl();
         }
 
         private static String extractResourceUploader(Assignment assignment) {
@@ -143,16 +175,82 @@ public class AssignmentsApiController {
             @RequestParam String name,
             @RequestParam String type,
             @RequestParam String description,
+            @RequestParam(required = false) String aiRubric,
+            @RequestParam(required = false) String pageContent,
             @RequestParam Double points,
             @RequestParam String dueDate,
+            @RequestParam(required = false, defaultValue = "file") String assignmentType,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
         requireTeacherOrAdmin(userDetails);
-        logger.debug("createAssignment called with name='{}' type='{}' points={} dueDate='{}' by user={}", name, type, points, dueDate, userDetails==null?"<anon>":userDetails.getUsername());
-        Assignment newAssignment = new Assignment(name, type, description, points, dueDate);
+        logger.debug("createAssignment called with name='{}' type='{}' points={} dueDate='{}' by user={}", name, type, assignmentType, points, dueDate, userDetails==null?"<anon>":userDetails.getUsername());
+        Assignment newAssignment = new Assignment(name, type, description, points, dueDate, assignmentType);
+        if (aiRubric != null && !aiRubric.isBlank()) {
+            newAssignment.setAiRubric(aiRubric.trim());
+        } else {
+            applyGeneratedRubric(newAssignment, name, description, pageContent);
+        }
         normalizeAssignmentSequenceForSqlite();
         Assignment savedAssignment = assignmentRepo.save(newAssignment);
         return new ResponseEntity<>(new AssignmentDto(savedAssignment), HttpStatus.CREATED);
+    }
+
+    @PutMapping("/{id}/ai-rubric")
+    public ResponseEntity<?> updateAiRubric(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        requireTeacherOrAdmin(userDetails);
+        Assignment assignment = assignmentRepo.findById(id).orElse(null);
+        if (assignment == null) {
+            return ResponseEntity.notFound().build();
+        }
+        String rubric = request == null ? null : request.get("rubric");
+        if (rubric == null || rubric.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "rubric is required"));
+        }
+        assignment.setAiRubric(rubric.trim());
+        return ResponseEntity.ok(new AssignmentDto(assignmentRepo.save(assignment)));
+    }
+
+    @PutMapping("/{id}/details")
+    public ResponseEntity<?> updateAssignmentDetails(
+            @PathVariable Long id,
+            @RequestBody AssignmentUpdateRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        requireTeacherOrAdmin(userDetails);
+        Assignment assignment = assignmentRepo.findById(id).orElse(null);
+        if (assignment == null) {
+            return ResponseEntity.notFound().build();
+        }
+        if (request == null || request.name == null || request.name.isBlank()
+                || request.type == null || request.type.isBlank()
+                || request.points == null || request.points < 0
+                || request.dueDate == null || request.dueDate.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Name, type, points, and due date are required"));
+        }
+
+        assignment.setName(request.name.trim());
+        assignment.setType(request.type.trim());
+        assignment.setDescription(request.description == null ? "" : request.description.trim());
+        assignment.setPoints(request.points);
+        assignment.setDueDate(request.dueDate.trim());
+        if (request.assignmentType != null && !request.assignmentType.isBlank()) {
+            assignment.setAssignmentType(request.assignmentType.trim());
+        }
+        return ResponseEntity.ok(new AssignmentDto(assignmentRepo.save(assignment)));
+    }
+
+    @Getter
+    @Setter
+    public static class AssignmentUpdateRequest {
+        public String name;
+        public String type;
+        public String description;
+        public Double points;
+        public String dueDate;
+        public String assignmentType;
     }
 
     /**
@@ -172,6 +270,7 @@ public class AssignmentsApiController {
             map.put("dueDate", a.getDueDate());
             map.put("points", String.valueOf(a.getPoints()));
             map.put("type", a.getType());
+            map.put("assignmentType", a.getAssignmentType());
             map.put("resourceType", String.valueOf(a.getResourceType()));
             map.put("resourceUrl", String.valueOf(a.getResourceUrl()));
             map.put("resourceFilename", String.valueOf(a.getResourceFilename()));
@@ -187,24 +286,35 @@ public class AssignmentsApiController {
      * This endpoint is called when assignment: true is set in Jekyll frontmatter.
      * Any authenticated user (student, person, teacher, admin) can create assignments.
      * If an assignment with the same contentUrl already exists, it returns that instead of creating a duplicate.
-     * 
+     *
+     * Metadata synchronization is separate from creation: creatorUids and courseCodes are only honored for
+     * the trusted Pages bot (ROLE_ASSIGNMENT_SYNC). Browser calls omit the parameter entirely
+     * and keep their existing behavior.
+     *
      * @param name The name of the assignment (required)
      * @param contentUrl The URL to the lesson page (required)
      * @param description The description of the assignment (optional)
+     * @param creatorUids Repeated form fields naming the assignment owners by Person.uid (optional, sync bot only)
+     * @param courseCodes Repeated canonical course group names (optional, sync bot only)
      * @param userDetails The authenticated user making the request
      * @return The created or existing assignment with auto-generated ID
      */
     @PostMapping("/auto-create")
+    @Transactional
     public ResponseEntity<?> autoCreateAssignment(
             @RequestParam String name,
             @RequestParam String contentUrl,
             @RequestParam(required = false, defaultValue = "") String description,
             @RequestParam(required = false) Double points,
             @RequestParam(required = false) String dueDate,
+            @RequestParam(required = false) String assignmentType,
+            @RequestParam(required = false) String pageContent,
+            @RequestParam(required = false) List<String> creatorUids,
+            @RequestParam(required = false) List<String> courseCodes,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
         // Debug log input
-        logger.debug("autoCreateAssignment called with name='{}' contentUrl='{}' description='{}' points={} dueDate='{}' userDetails={}", name, contentUrl, description, points, dueDate, userDetails==null?"<anon>":userDetails.getUsername());
+        logger.debug("autoCreateAssignment called with name='{}' contentUrl='{}' description='{}' points={} dueDate='{}' assignmentType='{}' creatorUids={} courseCodes={} userDetails={}", name, contentUrl, description, points, dueDate, assignmentType, creatorUids, courseCodes, userDetails==null?"<anon>":userDetails.getUsername());
 
         // Check authentication - any authenticated user can create assignments from frontmatter
         if (userDetails == null) {
@@ -219,53 +329,131 @@ public class AssignmentsApiController {
             return ResponseEntity.badRequest().body(Map.of("error", "Content URL is required"));
         }
 
+        // An omitted type must not reset an existing assignment's configured submission type.
+        String requestedAssignmentType = assignmentType == null || assignmentType.isBlank()
+            ? null : assignmentType.trim();
+
+        // The browser sends Jekyll's page.url ("/csa/lesson") and the Pages sync script
+        // sends the same URL derived from the source file; canonicalizing here is what
+        // makes both spellings resolve to one assignment instead of two.
+        final String canonicalUrl = AssignmentContentUrls.canonicalize(contentUrl);
+        if (canonicalUrl == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Content URL is required"));
+        }
+
+        // Ownership is only synchronized when the caller actually sent creatorUids.
+        // Absent parameter == legacy behavior, which is what the browser flow relies on.
+        boolean synchronizeCreators = creatorUids != null;
+        boolean synchronizeCourses = courseCodes != null;
+        List<Person> resolvedCreators = List.of();
+        List<com.open.spring.mvc.groups.Groups> resolvedCourseGroups = List.of();
+        if (synchronizeCreators || synchronizeCourses) {
+            Person requester = personRepo.findByUid(userDetails.getUsername());
+            if (!assignmentAuthorizationService.canSynchronizeAssignmentMetadata(requester)) {
+                logger.warn("Rejected assignment metadata synchronization from non-sync user '{}' for contentUrl {}",
+                    userDetails.getUsername(), contentUrl);
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Assignment sync role required to set assignment metadata"));
+            }
+        }
+        if (synchronizeCreators) {
+            try {
+                // Resolve every uid up front so a bad list never creates an assignment
+                // and never leaves a partially written creator relationship behind.
+                resolvedCreators = assignmentCreatorSyncService.resolveCreators(
+                    assignmentCreatorSyncService.normalizeUids(creatorUids));
+            } catch (UnknownCreatorException e) {
+                logger.warn("Rejected creator synchronization for contentUrl {}: {}", contentUrl, e.getMessage());
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Unknown creator uid(s)",
+                    "unknownCreatorUids", e.getUnknownUids()));
+            }
+        }
+        if (synchronizeCourses) {
+            try {
+                resolvedCourseGroups = assignmentCourseSyncService.resolveCourseGroups(
+                    assignmentCourseSyncService.normalizeCourseCodes(courseCodes));
+            } catch (UnknownCourseException e) {
+                logger.warn("Rejected course synchronization for contentUrl {}: {}", contentUrl, e.getMessage());
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Unknown course code(s)",
+                    "unknownCourseCodes", e.getUnknownCourseCodes()));
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            }
+        }
+
         double resolvedPoints = points != null ? points : 1.0;
         String resolvedDueDate = (dueDate != null && !dueDate.trim().isEmpty())
             ? dueDate.trim()
             : LocalDate.now().plusDays(3).format(DateTimeFormatter.ofPattern("MM/dd/yyyy"));
         
-        // Check if assignment already exists for this content URL
-        // For auto-created assignments, we store the content URL with a marker format:
-        // Description format: "[CONTENT_URL: <url>] <optional description>"
-        // This allows duplicate detection regardless of custom description
-        
-        final String contentUrlMarker = "[CONTENT_URL: " + contentUrl + "]";
-        List<Assignment> existing = assignmentRepo.findAll().stream()
-            .filter(a -> a.getType() != null && a.getType().equals("auto-created"))
-            .filter(a -> a.getDescription() != null && a.getDescription().startsWith(contentUrlMarker))
-            .collect(Collectors.toList());
-        
-        if (!existing.isEmpty()) {
-            // Return existing assignment (already has auto-generated ID)
-            // This avoids duplicate assignments for the same page
-            logger.info("Assignment already exists for contentUrl: " + contentUrl + ", ID: " + existing.get(0).getId());
-            AssignmentDto dto = new AssignmentDto(existing.get(0));
-            return ResponseEntity.ok(dto);
+        // Check if an assignment already exists for this content URL. This is a single
+        // indexed lookup on content_url; it used to be a findAll() scan filtering on a
+        // "[CONTENT_URL: <url>]" prefix written into the description, which read the whole
+        // assignment table on every lesson page load. AssignmentContentUrlMigration adds
+        // the column and backfills it from that legacy marker.
+        Assignment existing = assignmentRepo.findFirstByContentUrlOrderByIdAsc(canonicalUrl);
+
+        if (existing != null) {
+            Assignment existingAssignment = existing;
+            if (requestedAssignmentType != null
+                    && !requestedAssignmentType.equalsIgnoreCase(existingAssignment.getAssignmentType())) {
+                existingAssignment.setAssignmentType(requestedAssignmentType);
+                existingAssignment = assignmentRepo.save(existingAssignment);
+            }
+            // This avoids duplicate assignments for the same page.
+            // Ownership still has to be resynchronized here, otherwise frontmatter edits
+            // would only ever reach assignments on their very first deploy.
+            Assignment assignment = existingAssignment;
+            boolean metadataChanged = synchronizeCreators
+                && assignmentCreatorSyncService.applyCreators(assignment, resolvedCreators);
+            metadataChanged = (synchronizeCourses
+                && assignmentCourseSyncService.applyCourseGroups(assignment, resolvedCourseGroups))
+                || metadataChanged;
+            if (metadataChanged) {
+                assignment = assignmentRepo.save(assignment);
+                logger.info("Synchronized metadata for existing assignment ID {} (contentUrl: {})",
+                    assignment.getId(), canonicalUrl);
+            }
+            logger.info("Assignment already exists for contentUrl: " + canonicalUrl + ", ID: " + assignment.getId());
+            return ResponseEntity.ok(toDto(assignment, synchronizeCreators || synchronizeCourses));
         }
-        
+
         try {
             // Create new assignment with dynamic ID (auto-generated by database)
-            // Format description with content URL marker + optional user description
-            String finalDescription;
-            if (description != null && !description.trim().isEmpty()) {
-                finalDescription = contentUrlMarker + " " + description.trim();
-            } else {
-                finalDescription = contentUrlMarker;
-            }
-            
+            // The content URL lives in its own column now, so the description is only ever
+            // the human-readable text.
+            // Null, not "", when the page declares no description. GeminiFeedbackService
+            // builds its rubric as `description == null ? name : description`, so an empty
+            // string would slip past that fallback and send the model an empty rubric.
+            String trimmedDescription = (description == null) ? "" : description.trim();
+            String finalDescription = trimmedDescription.isEmpty() ? null : trimmedDescription;
+
             Assignment newAssignment = new Assignment(
                 name.trim(),
                 "auto-created",  // type - identifies this as auto-created from frontmatter
                 finalDescription,
                 resolvedPoints,
-                resolvedDueDate
+                resolvedDueDate,
+                requestedAssignmentType == null ? "file" : requestedAssignmentType
             );
+            applyGeneratedRubric(newAssignment, name, description, pageContent);
+
+            newAssignment.setContentUrl(canonicalUrl);
+            if (synchronizeCreators) {
+                assignmentCreatorSyncService.applyCreators(newAssignment, resolvedCreators);
+            }
+            if (synchronizeCourses) {
+                assignmentCourseSyncService.applyCourseGroups(newAssignment, resolvedCourseGroups);
+            }
             
             normalizeAssignmentSequenceForSqlite();
             Assignment savedAssignment = assignmentRepo.save(newAssignment);
-            logger.info("Auto-created assignment with ID: " + savedAssignment.getId() + " for contentUrl: " + contentUrl);
-            AssignmentDto dto = new AssignmentDto(savedAssignment);
-            return new ResponseEntity<>(dto, HttpStatus.CREATED);
+            logger.info("Auto-created assignment with ID: " + savedAssignment.getId() + " for contentUrl: " + canonicalUrl);
+            return new ResponseEntity<>(
+                toDto(savedAssignment, synchronizeCreators || synchronizeCourses),
+                HttpStatus.CREATED);
         } catch (Exception e) {
             logger.error("Error auto-creating assignment for contentUrl: " + contentUrl, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -273,10 +461,87 @@ public class AssignmentsApiController {
         }
     }
 
+    public ResponseEntity<?> autoCreateAssignment(
+            String name,
+            String contentUrl,
+            String description,
+            Double points,
+            String dueDate,
+            List<String> creatorUids,
+            UserDetails userDetails) {
+        return autoCreateAssignment(
+            name, contentUrl, description, points, dueDate, null, null, creatorUids, null, userDetails);
+    }
+
+    /**
+     * Assignments the caller is allowed to manage.
+     *
+     * Teachers and admins see every assignment; a creator sees only the assignments they
+     * own; everyone else gets an empty list. Used by the Pages creator notice and by the
+     * creator-facing submission views.
+     *
+     * @return assignment DTOs including their creator uids
+     */
+    @GetMapping("/managed")
+    @Transactional
+    public ResponseEntity<?> getManagedAssignments(@AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", "Authentication required"));
+        }
+        Person user = personRepo.findByUid(userDetails.getUsername());
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", "Authentication required"));
+        }
+
+        List<Assignment> managed = assignmentAuthorizationService.isTeacherOrAdmin(user)
+            ? assignmentRepo.findAllWithCreators()
+            : assignmentRepo.findByCreatorId(user.getId());
+
+        List<AssignmentDto> dtos = managed.stream()
+            .map(assignment -> toDto(assignment, true))
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
+    /**
+     * @param includeCreators only read the creator relationship when the caller is entitled
+     *        to see it and the collection is loadable in the current transaction.
+     */
+    private AssignmentDto toDto(Assignment assignment, boolean includeCreators) {
+        return includeCreators
+            ? new AssignmentDto(
+                assignment,
+                assignmentCreatorSyncService.creatorUidsOf(assignment),
+                assignmentCourseSyncService.courseCodesOf(assignment))
+            : new AssignmentDto(assignment);
+    }
+
     @Getter
     @Setter
     public static class AssignmentResourceUrlDto {
         public String url;
+    }
+
+    /**
+     * Generates a thorough, page-grounded AI rubric for a brand-new assignment when the
+     * caller supplied the assignment page's content and didn't already set an explicit
+     * rubric. Best-effort: any failure (no API key, bad response) leaves the assignment's
+     * constructor-assigned {@link Assignment#DEFAULT_AI_RUBRIC} in place.
+     */
+    private void applyGeneratedRubric(Assignment assignment, String name, String description, String pageContent) {
+        if (pageContent == null || pageContent.isBlank()) {
+            return;
+        }
+        try {
+            String generated = rubricService.generateRubric(name, description, pageContent);
+            if (generated != null && !generated.isBlank()) {
+                assignment.setAiRubric(generated);
+            }
+        } catch (Exception e) {
+            logger.warn("Rubric generation failed for assignment '{}': {}", name, e.getMessage());
+        }
     }
 
     /**
@@ -378,6 +643,20 @@ public class AssignmentsApiController {
     }
 
     /**
+     * A GET endpoint to retrieve assignments by type.
+     * @param type The type of assignment (e.g., "sprints", "all_assignments")
+     * @return A list of assignments of the specified type.
+     */
+    @GetMapping("/type/{type}")
+    public ResponseEntity<?> getAssignmentsByType(@PathVariable String type) {
+        List<Assignment> assignments = assignmentRepo.findByAssignmentType(type);
+        List<AssignmentDto> dtos = assignments.stream()
+            .map(AssignmentDto::new)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
+    /**
      * Read back file resource payload for an assignment by ID.
      */
     @GetMapping("/{id}/resource/file-content")
@@ -436,6 +715,7 @@ public class AssignmentsApiController {
         snippet.append("assignment_id: ").append(assignment.getId()).append("\n");
         snippet.append("assignment_name: \"").append(escapeYaml(assignment.getName())).append("\"\n");
         snippet.append("assignment_type: \"").append(escapeYaml(assignment.getType())).append("\"\n");
+        snippet.append("assignment_submission_type: \"").append(escapeYaml(assignment.getAssignmentType())).append("\"\n");
         snippet.append("assignment_due_date: \"").append(escapeYaml(assignment.getDueDate())).append("\"\n");
         snippet.append("assignment_resource_type: \"").append(escapeYaml(defaultString(assignment.getResourceType(), "none"))).append("\"\n");
         snippet.append("assignment_resource_url: \"").append(escapeYaml(defaultString(assignment.getResourceUrl(), ""))).append("\"\n");
@@ -871,7 +1151,8 @@ public class AssignmentsApiController {
                     assignmentDto.type, 
                     assignmentDto.description, 
                     assignmentDto.points, 
-                    assignmentDto.dueDate
+                    assignmentDto.dueDate,
+                    assignmentDto.assignmentType
                 );
                 
                 // Save the new assignment

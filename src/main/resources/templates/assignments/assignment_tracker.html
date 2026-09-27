@@ -75,6 +75,67 @@
             max-width: 980px;
         }
 
+        .rubric-modal-content {
+            max-width: 760px;
+        }
+
+        .assignment-edit-form {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px 16px;
+        }
+
+        .assignment-edit-form .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .assignment-edit-form label {
+            display: block;
+            margin-bottom: 5px;
+            color: #c8d0d9;
+        }
+
+        .assignment-edit-form input,
+        .assignment-edit-form textarea,
+        .assignment-edit-form select {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
+            color: #f1f1f1;
+            background: #252725;
+            border: 1px solid #4a4d4a;
+            border-radius: 4px;
+        }
+
+        .assignment-edit-form textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        @media (max-width: 640px) {
+            .assignment-edit-form {
+                grid-template-columns: 1fr;
+            }
+
+            .assignment-edit-form .full-width {
+                grid-column: auto;
+            }
+        }
+
+        #editAiRubricText {
+            width: 100%;
+            min-height: 280px;
+            box-sizing: border-box;
+            resize: vertical;
+            font-family: inherit;
+            padding: 10px;
+        }
+
+        #editAiRubricStatus {
+            min-height: 20px;
+            margin: 8px 0;
+        }
+
         .close-btn {
             color: #aaa;
             float: right;
@@ -97,6 +158,332 @@
             min-height: 140px;
             font-family: monospace;
         }
+
+        #submissionsModal .modal-content {
+            width: min(92%, 980px);
+            box-sizing: border-box;
+        }
+
+        #submissionsTable {
+            width: 100% !important;
+            table-layout: fixed;
+        }
+
+        #submissionsTable th,
+        #submissionsTable td {
+            overflow-wrap: anywhere;
+            vertical-align: middle;
+        }
+
+        #submissionsTable th:nth-child(1),
+        #submissionsTable td:nth-child(1) {
+            width: 34%;
+        }
+
+        #submissionsTable th:nth-child(2),
+        #submissionsTable td:nth-child(2) {
+            width: 18%;
+        }
+
+        #submissionsTable th:nth-child(3),
+        #submissionsTable td:nth-child(3) {
+            width: 48%;
+        }
+
+        .submission-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .submission-actions .btn {
+            margin: 0;
+            padding: 8px 10px;
+            white-space: nowrap;
+        }
+
+        #submissionDetailView {
+            display: none;
+        }
+
+        .submission-detail-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .submission-detail-header h3 {
+            margin: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .submission-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .submission-detail-field {
+            min-width: 0;
+            padding: 12px;
+            background: #252725;
+            border: 1px solid #3a3d3a;
+            border-radius: 4px;
+        }
+
+        .submission-detail-field.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .submission-detail-field strong {
+            display: block;
+            margin-bottom: 6px;
+            color: #b9d7ff;
+        }
+
+        .submission-detail-field pre {
+            margin: 0;
+            max-height: 280px;
+            overflow: auto;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            font: inherit;
+            color: #f1f1f1;
+        }
+
+        .submission-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .submission-summary-card {
+            padding: 14px;
+            background: #252725;
+            border: 1px solid #3a3d3a;
+            border-radius: 6px;
+        }
+
+        .submission-summary-card strong {
+            display: block;
+            margin-bottom: 6px;
+            color: #9da9b5;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .submission-summary-card span {
+            display: block;
+            overflow-wrap: anywhere;
+            color: #f5f7fa;
+            font-size: 16px;
+        }
+
+        .submission-score {
+            color: #8ee0a8 !important;
+            font-size: 24px !important;
+            font-weight: 700;
+        }
+
+        .submission-detail-field {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        }
+
+        .submission-detail-field p {
+            margin: 0;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .submission-detail-field .submission-content {
+            font-size: 15px;
+            line-height: 1.65;
+        }
+
+        @media (max-width: 640px) {
+            .submission-summary {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .assignment-list-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin: 24px 0 12px;
+        }
+
+        .assignment-list-header h2 {
+            margin: 0;
+        }
+
+        #assignmentTable {
+            width: 100% !important;
+            table-layout: fixed;
+        }
+
+        #assignmentTable th,
+        #assignmentTable td {
+            vertical-align: middle;
+            overflow-wrap: anywhere;
+        }
+
+        #assignmentTable th:nth-child(1),
+        #assignmentTable td:nth-child(1) { width: 58%; }
+
+        #assignmentTable th:nth-child(2),
+        #assignmentTable td:nth-child(2) { width: 24%; }
+
+        #assignmentTable th:nth-child(3),
+        #assignmentTable td:nth-child(3) { width: 18%; }
+
+        .assignment-name-cell {
+            font-weight: 600;
+            color: #f5f7fa;
+        }
+
+        .assignment-due-date {
+            color: #c8d0d9;
+            white-space: nowrap;
+        }
+
+        .assignment-view-button {
+            margin: 0;
+            white-space: nowrap;
+        }
+
+        #assignmentDashboard {
+            display: none;
+            margin-top: 24px;
+        }
+
+        #assignmentDashboard.active {
+            display: block;
+        }
+
+        .assignment-dashboard-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 18px;
+        }
+
+        .assignment-dashboard-header h2 {
+            margin: 0 0 8px;
+            overflow-wrap: anywhere;
+        }
+
+        .assignment-dashboard-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 18px;
+            color: #c8d0d9;
+        }
+
+        .assignment-dashboard-meta strong {
+            color: #f1f4f7;
+        }
+
+        .assignment-dashboard-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 14px;
+            margin-bottom: 18px;
+            background: #252725;
+            border: 1px solid #3a3d3a;
+            border-radius: 6px;
+        }
+
+        .assignment-dashboard-actions .btn {
+            margin: 0;
+        }
+
+        .assignment-dashboard-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+            gap: 16px;
+        }
+
+        .assignment-dashboard-card {
+            min-width: 0;
+            padding: 18px;
+            background: #252725;
+            border: 1px solid #3a3d3a;
+            border-radius: 6px;
+        }
+
+        .assignment-dashboard-card h3 {
+            margin: 0 0 12px;
+            color: #b9d7ff;
+        }
+
+        .assignment-dashboard-card p,
+        .assignment-dashboard-card pre {
+            margin: 0;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            line-height: 1.55;
+        }
+
+        .assignment-dashboard-card pre {
+            max-height: 420px;
+            overflow: auto;
+            font: inherit;
+            color: #f1f1f1;
+        }
+
+        .assignment-resource-link {
+            display: inline-block;
+            margin-top: 12px;
+        }
+
+        .assignment-dashboard-submissions {
+            margin-top: 16px;
+        }
+
+        @media (max-width: 760px) {
+            .assignment-dashboard-header,
+            .assignment-list-header {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .assignment-dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            #assignmentTable th:nth-child(1),
+            #assignmentTable td:nth-child(1) { width: 48%; }
+
+            #assignmentTable th:nth-child(2),
+            #assignmentTable td:nth-child(2) { width: 28%; }
+
+            #assignmentTable th:nth-child(3),
+            #assignmentTable td:nth-child(3) { width: 24%; }
+        }
+
+        @media (max-width: 640px) {
+            #submissionsModal .modal-content {
+                margin: 3% auto;
+                padding: 14px;
+            }
+
+            .submission-actions {
+                flex-direction: column;
+            }
+
+            .submission-actions .btn {
+                width: 100%;
+            }
+        }
     </style>
 </th:block>
 
@@ -114,6 +501,11 @@
             <button class="btn" onclick="showAddAssignmentModal()">Add Assignment</button>
             <button class="btn btn-export" onclick="exportAssignments()">Export All Assignments</button>
 
+            <div class="assignment-list-header">
+                <h2>Assignments</h2>
+                <span id="assignmentListStatus" class="assignment-dashboard-meta"></span>
+            </div>
+
             <div id="addAssignmentModal" class="modal">
                 <div class="modal-content">
                     <span class="close-btn" onclick="closeAddAssignmentModal()">&times;</span>
@@ -122,7 +514,8 @@
                     <div class="stack"><label>Name</label><input type="text" id="assignmentName"></div>
                     <div class="stack"><label>Type</label><input type="text" id="assignmentType"></div>
                     <div class="stack"><label>Description</label><input type="text" id="assignmentDescription"></div>
-                    <div class="stack"><label>Points</label><input type="number" id="assignmentPoints"></div>
+                    <div class="stack"><label>AI Grading Rubric</label><textarea id="assignmentAiRubric" rows="6" placeholder="Leave blank to use the generic 1-5 rubric."></textarea></div>
+                    <div class="stack"><label>Points available</label><input type="number" id="assignmentPoints"></div>
                     <div class="stack"><label>Due Date</label><input type="date" id="assignmentDueDate"></div>
 
                     <div class="stack">
@@ -154,6 +547,56 @@
                 </div>
             </div>
 
+            <div id="editAiRubricModal" class="modal">
+                <div class="modal-content rubric-modal-content">
+                    <span class="close-btn" onclick="closeEditAiRubricModal()">&times;</span>
+                    <h2>Edit AI Grading Rubric</h2>
+                    <p id="editAiRubricAssignmentName"></p>
+                    <label for="editAiRubricText">Rubric used to score eligible GitHub issue submissions from 1 to 5</label>
+                    <textarea id="editAiRubricText"></textarea>
+                    <div id="editAiRubricStatus" role="status" aria-live="polite"></div>
+                    <button class="btn btn-grade" onclick="saveAiRubric()">Save Rubric</button>
+                    <button class="btn" onclick="closeEditAiRubricModal()">Cancel</button>
+                </div>
+            </div>
+
+            <div id="editAssignmentModal" class="modal">
+                <div class="modal-content rubric-modal-content">
+                    <span class="close-btn" onclick="closeEditAssignmentModal()">&times;</span>
+                    <h2>Edit Assignment</h2>
+                    <p id="editAssignmentNameLabel"></p>
+                    <div class="assignment-edit-form">
+                        <div>
+                            <label for="editAssignmentName">Name</label>
+                            <input id="editAssignmentName" type="text">
+                        </div>
+                        <div>
+                            <label for="editAssignmentType">Type</label>
+                            <input id="editAssignmentType" type="text">
+                        </div>
+                        <div>
+                            <label for="editAssignmentPoints">Points available</label>
+                            <input id="editAssignmentPoints" type="number" min="0" step="0.01">
+                        </div>
+                        <div>
+                            <label for="editAssignmentDueDate">Due date</label>
+                            <input id="editAssignmentDueDate" type="text" placeholder="MM/DD/YYYY">
+                        </div>
+                        <div>
+                            <label for="editAssignmentSubmissionType">Submission type</label>
+                            <input id="editAssignmentSubmissionType" type="text">
+                        </div>
+                        <div class="full-width">
+                            <label for="editAssignmentDescription">Description</label>
+                            <textarea id="editAssignmentDescription"></textarea>
+                        </div>
+                    </div>
+                    <div id="editAssignmentStatus" role="status" aria-live="polite"></div>
+                    <button class="btn btn-grade" onclick="saveAssignmentDetails()">Save changes</button>
+                    <button class="btn" onclick="closeEditAssignmentModal()">Cancel</button>
+                </div>
+            </div>
+
             <div id="assignToGradeModal" class="modal">
                 <div class="modal-content">
                     <span class="close-btn" onclick="closeAssignToGradeModal()">&times;</span>
@@ -178,17 +621,54 @@
             <table id="assignmentTable" class="display">
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Name</th>
-                        <th>Type</th>
-                        <th>Description</th>
-                        <th>Points</th>
                         <th>Due Date</th>
-                        <th>Resource</th>
-                        <th>Actions</th>
+                        <th>View</th>
                     </tr>
                 </thead>
             </table>
+
+            <section id="assignmentDashboard" aria-live="polite">
+                <div class="assignment-dashboard-header">
+                    <div>
+                        <h2 id="assignmentDashboardName">Assignment</h2>
+                        <div id="assignmentDashboardMeta" class="assignment-dashboard-meta"></div>
+                    </div>
+                    <button class="btn btn-view-submissions" onclick="closeAssignmentDashboard()">Back to assignments</button>
+                </div>
+
+                <div class="assignment-dashboard-actions">
+                    <button class="btn btn-view-submissions" onclick="viewDashboardSubmissions()">View submissions</button>
+                    <button class="btn btn-grade" onclick="editDashboardAssignment()">Edit assignment</button>
+                    <button class="btn btn-grade" onclick="editDashboardRubric()">Edit AI rubric</button>
+                    <button class="btn btn-grade" onclick="assignDashboardGraders()">Assign graders</button>
+                    <button class="btn btn-randomize" onclick="randomizeDashboardGraders()">Randomize graders</button>
+                    <button class="btn btn-export-one" onclick="exportDashboardAssignment()">Export assignment</button>
+                    <button class="btn btn-export-submissions" onclick="exportDashboardSubmissions()">Export submissions</button>
+                    <button class="btn" onclick="generateDashboardFrontmatter()">Frontmatter</button>
+                    <button class="btn btn-delete" onclick="deleteDashboardAssignment()">Delete assignment</button>
+                </div>
+
+                <div class="assignment-dashboard-grid">
+                    <article class="assignment-dashboard-card">
+                        <h3>Description</h3>
+                        <p id="assignmentDashboardDescription">No description provided.</p>
+                    </article>
+                    <article class="assignment-dashboard-card">
+                        <h3>Resource</h3>
+                        <p id="assignmentDashboardResource">No resource attached.</p>
+                        <div id="assignmentDashboardResourceAction"></div>
+                    </article>
+                    <article class="assignment-dashboard-card assignment-dashboard-submissions">
+                        <h3>AI grading rubric</h3>
+                        <pre id="assignmentDashboardRubric">No rubric provided.</pre>
+                    </article>
+                    <article class="assignment-dashboard-card assignment-dashboard-submissions">
+                        <h3>Assignment details</h3>
+                        <div id="assignmentDashboardDetails" class="assignment-dashboard-meta"></div>
+                    </article>
+                </div>
+            </section>
         </div>
 
         <div id="studentView" style="display: none;">
@@ -209,17 +689,25 @@
             <div class="modal-content">
                 <span class="close-btn" onclick="closeSubmissionsModal()">&times;</span>
                 <h2 id="studentNameHeader">Submissions</h2>
-                <table id="submissionsTable" class="display">
-                    <thead>
-                        <tr>
-                            <th>Student/Group</th>
-                            <th>Content</th>
-                            <th>Comments</th>
-                            <th>Grade</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                </table>
+                <div id="submissionListView">
+                    <table id="submissionsTable" class="display">
+                        <thead>
+                            <tr>
+                                <th>Submitter</th>
+                                <th>Grade</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+                <div id="submissionDetailView">
+                    <div class="submission-detail-header">
+                        <h3 id="submissionDetailTitle">Submission Details</h3>
+                        <button class="btn btn-view-submissions" onclick="backToSubmissionList()">Back</button>
+                    </div>
+                    <div id="submissionSummary" class="submission-summary"></div>
+                    <div id="submissionDetailContent" class="submission-detail-grid"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -272,29 +760,200 @@
         async function fetchAssignments() {
             const response = await fetch('/api/assignments/debug');
             const assignments = await response.json();
+            window.assignmentRubrics = {};
+            window.assignmentRows = {};
+            window.currentAssignmentId = null;
+            document.getElementById('assignmentDashboard')?.classList.remove('active');
+            document.getElementById('assignmentTable_wrapper')?.style.removeProperty('display');
+            document.querySelector('.assignment-list-header')?.style.removeProperty('display');
             assignmentTable.clear();
             assignments.forEach(assignment => {
+                window.assignmentRubrics[assignment.id] = assignment.aiRubric || '';
+                window.assignmentRows[assignment.id] = assignment;
                 assignmentTable.row.add([
-                    assignment.id,
-                    assignment.name,
-                    assignment.type,
-                    assignment.description || '',
-                    assignment.points,
-                    assignment.dueDate,
-                    renderResource(assignment),
-                    `
-                        <button class="btn btn-view-submissions" onclick="viewSubmissions(${assignment.id})">View Submissions</button>
-                        <button class="btn btn-delete" onclick="deleteAssignment(${assignment.id})">Delete</button>
-                        <button class="btn btn-grade" onclick="showAssignToGradeModal(${assignment.id})">Assign to Grade</button>
-                        <button class="btn btn-randomize" onclick="showRandomizeGradersModal(${assignment.id})">Randomize Graders</button>
-                        <button class="btn btn-export-one" onclick="exportIndividualAssignment(${assignment.id})">Export Assignment</button>
-                        <button class="btn btn-export-submissions" onclick="exportSubmissions(${assignment.id})">Export Submissions</button>
-                        <button class="btn" onclick="generateFrontmatter(${assignment.id})">Frontmatter</button>
-                    `
+                    `<span class="assignment-name-cell">${escapeHtml(assignment.name || 'Untitled assignment')}</span>`,
+                    `<span class="assignment-due-date">${escapeHtml(assignment.dueDate || 'No due date')}</span>`,
+                    `<button class="btn btn-view-submissions assignment-view-button" onclick="openAssignmentDashboard(${assignment.id})">View assignment</button>`
                 ]);
             });
             assignmentTable.draw();
+            document.getElementById('assignmentListStatus').textContent = `${assignments.length} assignment${assignments.length === 1 ? '' : 's'}`;
         }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function currentDashboardAssignment() {
+            return window.assignmentRows?.[window.currentAssignmentId];
+        }
+
+        window.openAssignmentDashboard = function (assignmentId) {
+            const assignment = window.assignmentRows?.[assignmentId];
+            if (!assignment) {
+                return;
+            }
+
+            window.currentAssignmentId = assignmentId;
+            document.getElementById('assignmentTable_wrapper').style.display = 'none';
+            document.querySelector('.assignment-list-header').style.display = 'none';
+            document.getElementById('assignmentDashboardName').textContent = assignment.name || 'Untitled assignment';
+            document.getElementById('assignmentDashboardMeta').innerHTML = `
+                <span><strong>Due:</strong> ${escapeHtml(assignment.dueDate || 'No due date')}</span>
+                <span><strong>Type:</strong> ${escapeHtml(assignment.type || 'Not specified')}</span>
+            `;
+            document.getElementById('assignmentDashboardDescription').textContent = assignment.description || 'No description provided.';
+            document.getElementById('assignmentDashboardRubric').textContent = assignment.aiRubric || 'No rubric provided.';
+            document.getElementById('assignmentDashboardDetails').innerHTML = `
+                <span><strong>Points available:</strong> ${escapeHtml(assignment.points ?? 'Not specified')}</span>
+                <span><strong>Submission:</strong> ${escapeHtml(assignment.assignmentType || 'Not specified')}</span>
+                <span><strong>Created:</strong> ${escapeHtml(assignment.timestamp || 'Not specified')}</span>
+            `;
+
+            const resourceText = document.getElementById('assignmentDashboardResource');
+            const resourceAction = document.getElementById('assignmentDashboardResourceAction');
+            resourceAction.replaceChildren();
+            if (assignment.resourceType === 'url' && assignment.resourceUrl) {
+                resourceText.textContent = 'External URL';
+                const link = document.createElement('a');
+                link.className = 'btn btn-view-submissions assignment-resource-link';
+                link.href = assignment.resourceUrl;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.textContent = 'Open resource';
+                resourceAction.appendChild(link);
+            } else if (assignment.resourceType === 'file' && assignment.resourceStoragePath) {
+                resourceText.textContent = assignment.resourceFilename || 'Uploaded file';
+                const link = document.createElement('a');
+                link.className = 'btn btn-view-submissions assignment-resource-link';
+                link.href = `/mvc/assignments/tracker-v2/file/${assignment.id}`;
+                link.textContent = 'Download resource';
+                resourceAction.appendChild(link);
+            } else {
+                resourceText.textContent = 'No resource attached.';
+            }
+
+            document.getElementById('assignmentDashboard').classList.add('active');
+        };
+
+        window.closeAssignmentDashboard = function () {
+            window.currentAssignmentId = null;
+            document.getElementById('assignmentDashboard').classList.remove('active');
+            document.getElementById('assignmentTable_wrapper').style.display = '';
+            document.querySelector('.assignment-list-header').style.display = '';
+        };
+
+        window.viewDashboardSubmissions = function () {
+            if (window.currentAssignmentId != null) {
+                viewSubmissions(window.currentAssignmentId);
+            }
+        };
+
+        window.editDashboardAssignment = function () {
+            const assignment = currentDashboardAssignment();
+            if (!assignment) {
+                return;
+            }
+            document.getElementById('editAssignmentNameLabel').textContent = `Editing: ${assignment.name || 'Assignment'}`;
+            document.getElementById('editAssignmentName').value = assignment.name || '';
+            document.getElementById('editAssignmentType').value = assignment.type || '';
+            document.getElementById('editAssignmentPoints').value = assignment.points ?? '';
+            document.getElementById('editAssignmentDueDate').value = assignment.dueDate || '';
+            document.getElementById('editAssignmentSubmissionType').value = assignment.assignmentType || '';
+            document.getElementById('editAssignmentDescription').value = assignment.description || '';
+            document.getElementById('editAssignmentStatus').textContent = '';
+            document.getElementById('editAssignmentModal').style.display = 'block';
+            document.getElementById('editAssignmentName').focus();
+        };
+
+        window.saveAssignmentDetails = async function () {
+            const assignment = currentDashboardAssignment();
+            const status = document.getElementById('editAssignmentStatus');
+            if (!assignment) {
+                return;
+            }
+
+            const payload = {
+                name: document.getElementById('editAssignmentName').value.trim(),
+                type: document.getElementById('editAssignmentType').value.trim(),
+                points: Number(document.getElementById('editAssignmentPoints').value),
+                dueDate: document.getElementById('editAssignmentDueDate').value.trim(),
+                assignmentType: document.getElementById('editAssignmentSubmissionType').value.trim(),
+                description: document.getElementById('editAssignmentDescription').value.trim()
+            };
+            if (!payload.name || !payload.type || !payload.dueDate || !Number.isFinite(payload.points) || payload.points < 0) {
+                status.textContent = 'Name, type, points, and due date are required.';
+                return;
+            }
+
+            status.textContent = 'Saving...';
+            try {
+                const response = await fetch(`/api/assignments/${assignment.id}/details`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to update assignment');
+                }
+                closeEditAssignmentModal();
+                await fetchAssignments();
+                openAssignmentDashboard(result.id);
+            } catch (error) {
+                status.textContent = error.message;
+            }
+        };
+
+        window.editDashboardRubric = function () {
+            if (window.currentAssignmentId != null) {
+                editAiRubric(window.currentAssignmentId);
+            }
+        };
+
+        window.assignDashboardGraders = function () {
+            if (window.currentAssignmentId != null) {
+                showAssignToGradeModal(window.currentAssignmentId);
+            }
+        };
+
+        window.randomizeDashboardGraders = function () {
+            if (window.currentAssignmentId != null) {
+                showRandomizeGradersModal(window.currentAssignmentId);
+            }
+        };
+
+        window.exportDashboardAssignment = function () {
+            if (window.currentAssignmentId != null) {
+                exportIndividualAssignment(window.currentAssignmentId);
+            }
+        };
+
+        window.exportDashboardSubmissions = function () {
+            if (window.currentAssignmentId != null) {
+                exportSubmissions(window.currentAssignmentId);
+            }
+        };
+
+        window.generateDashboardFrontmatter = function () {
+            if (window.currentAssignmentId != null) {
+                generateFrontmatter(window.currentAssignmentId);
+            }
+        };
+
+        window.deleteDashboardAssignment = function () {
+            if (window.currentAssignmentId == null) {
+                return;
+            }
+            const assignmentId = window.currentAssignmentId;
+            deleteAssignment(assignmentId);
+            closeAssignmentDashboard();
+        };
 
         async function fetchStudents() {
             const response = await fetch('/api/people');
@@ -363,6 +1022,7 @@
             const name = document.getElementById('assignmentName').value;
             const type = document.getElementById('assignmentType').value;
             const description = document.getElementById('assignmentDescription').value;
+            const aiRubric = document.getElementById('assignmentAiRubric').value;
             const points = document.getElementById('assignmentPoints').value;
             const dueDateRaw = document.getElementById('assignmentDueDate').value;
             const mode = document.getElementById('assignmentResourceMode').value;
@@ -388,6 +1048,7 @@
                 name,
                 type,
                 description,
+                aiRubric,
                 points,
                 dueDate: toMDY(dueDateRaw)
             });
@@ -419,6 +1080,44 @@
             }
         };
 
+        window.editAiRubric = async function (assignmentId) {
+            const currentRubric = window.assignmentRubrics?.[assignmentId] || '';
+            const assignment = window.assignmentRows?.[assignmentId];
+            document.getElementById('editAiRubricAssignmentName').textContent = assignment
+                ? `Assignment: ${assignment.name}`
+                : `Assignment ID: ${assignmentId}`;
+            document.getElementById('editAiRubricText').value = currentRubric;
+            document.getElementById('editAiRubricText').dataset.assignmentId = assignmentId;
+            document.getElementById('editAiRubricStatus').textContent = '';
+            document.getElementById('editAiRubricModal').style.display = 'block';
+            document.getElementById('editAiRubricText').focus();
+        };
+
+        window.saveAiRubric = async function () {
+            const rubricField = document.getElementById('editAiRubricText');
+            const status = document.getElementById('editAiRubricStatus');
+            const assignmentId = rubricField.dataset.assignmentId;
+            const rubric = rubricField.value;
+            if (!rubric.trim()) {
+                status.textContent = 'A rubric is required.';
+                return;
+            }
+            status.textContent = 'Saving...';
+            const response = await fetch(`/api/assignments/${assignmentId}/ai-rubric`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rubric })
+            });
+            if (!response.ok) {
+                status.textContent = 'Failed to update the AI rubric.';
+                return;
+            }
+            window.assignmentRubrics[assignmentId] = rubric.trim();
+            await fetchAssignments();
+            status.textContent = 'Rubric saved.';
+            window.setTimeout(closeEditAiRubricModal, 400);
+        };
+
         window.deleteAssignment = function (id) {
             if (!confirm('Are you sure you want to delete this assignment?')) {
                 return;
@@ -426,25 +1125,57 @@
             fetch(`/api/assignments/delete/${id}`, { method: 'POST' }).then(fetchAssignments);
         };
 
+        function formatSubmissionContent(content) {
+            if (!content) {
+                return 'No content';
+            }
+            if (typeof content === 'string') {
+                return content;
+            }
+            if (content.type === 'link' && content.url) {
+                return content.url;
+            }
+            if (content.type === 'file') {
+                return content.filename || content.fileName || content.path || 'File submission';
+            }
+            if (content.url) {
+                return content.url;
+            }
+            if (content.text || content.answer || content.response || content.value) {
+                return content.text || content.answer || content.response || content.value;
+            }
+            return 'Submitted content is available, but has no displayable text.';
+        }
+
+        function renderSubmissionRows(submissions) {
+            window.submissionDetails = {};
+            if (submissions.length === 0) {
+                submissionsTable.row.add(['No submissions found', '', '']);
+                return;
+            }
+
+            submissions.forEach(submission => {
+                window.submissionDetails[submission.id] = submission;
+                submissionsTable.row.add([
+                    submission.submitter?.name || 'Unknown',
+                    submission.grade ?? 'Not graded',
+                    `<div class="submission-actions">
+                        <button class="btn btn-view-submissions" onclick="viewSubmissionDetails(${submission.id})">View</button>
+                        <button class="btn btn-grade" onclick="gradeSubmission(${submission.id})">Manual Grade</button>
+                        <button class="btn btn-grade" onclick="aiGradeSubmission(${submission.id}, this)">AI Grade</button>
+                    </div>`
+                ]);
+            });
+        }
+
         window.viewSubmissions = function (id) {
             fetch(`/api/submissions/assignment/${id}`)
                 .then(response => response.json())
                 .then(submissions => {
                     submissionsTable.clear();
-                    if (submissions.length === 0) {
-                        submissionsTable.row.add(['No submissions found', '', '', '', '']);
-                    } else {
-                        submissions.forEach(submission => {
-                            submissionsTable.row.add([
-                                submission.submitter?.name || 'Unknown',
-                                submission.content || 'No content',
-                                submission.comment || 'No comments',
-                                submission.grade || 'Not graded',
-                                `<button class="btn btn-grade" onclick="gradeSubmission(${submission.id})">Grade</button>`
-                            ]);
-                        });
-                    }
+                    renderSubmissionRows(submissions);
                     submissionsTable.draw();
+                    backToSubmissionList();
                     document.getElementById('submissionsModal').style.display = 'block';
                 });
         };
@@ -455,22 +1186,80 @@
                 .then(submissions => {
                     submissionsTable.clear();
                     document.getElementById('studentNameHeader').textContent = `${studentName}'s Submissions`;
-                    if (submissions.length === 0) {
-                        submissionsTable.row.add(['No submissions found', '', '', '', '']);
-                    } else {
-                        submissions.forEach(submission => {
-                            submissionsTable.row.add([
-                                submission.assignment?.name || 'Unknown Assignment',
-                                submission.content || 'No content',
-                                submission.comment || 'No comments',
-                                submission.grade || 'Not graded',
-                                `<button class="btn btn-grade" onclick="gradeSubmission(${submission.id})">Grade</button>`
-                            ]);
-                        });
-                    }
+                    renderSubmissionRows(submissions);
                     submissionsTable.draw();
+                    backToSubmissionList();
                     document.getElementById('submissionsModal').style.display = 'block';
                 });
+        };
+
+        window.viewSubmissionDetails = function (submissionId) {
+            const submission = window.submissionDetails?.[submissionId];
+            if (!submission) {
+                return;
+            }
+
+            const submitterName = submission.submitter?.name || 'Unknown submitter';
+            const assignmentName = submission.assignment?.name || 'Assignment submission';
+            const grade = submission.grade == null ? 'Not graded' : submission.grade;
+            const qualityScore = submission.qualityScore == null ? 'Not scored' : `${submission.qualityScore}/5`;
+            const content = formatSubmissionContent(submission.content);
+            const summary = document.getElementById('submissionSummary');
+            summary.replaceChildren();
+            [
+                ['Submitter', submitterName, ''],
+                ['Grade', grade, grade === 'Not graded' ? '' : 'submission-score'],
+                ['AI quality', qualityScore, qualityScore === 'Not scored' ? '' : 'submission-score']
+            ].forEach(([label, value, className]) => {
+                const card = document.createElement('div');
+                card.className = 'submission-summary-card';
+                const heading = document.createElement('strong');
+                heading.textContent = label;
+                const valueElement = document.createElement('span');
+                valueElement.className = className;
+                valueElement.textContent = value;
+                card.append(heading, valueElement);
+                summary.appendChild(card);
+            });
+
+            const detailContent = document.getElementById('submissionDetailContent');
+            detailContent.replaceChildren();
+            document.getElementById('submissionDetailTitle').textContent =
+                `${assignmentName} submission`;
+
+            appendSubmissionDetail(detailContent, 'Submitted work', content, true);
+            appendSubmissionDetail(detailContent, 'Student comment', submission.comment, false);
+            appendSubmissionDetail(detailContent, 'Feedback', submission.feedback, false);
+            appendSubmissionDetail(detailContent, 'AI summary', submission.aiSummary, false);
+
+            const status = submission.isLate ? 'Submitted late' : 'Submitted on time';
+            appendSubmissionDetail(detailContent, 'Submission status', status, false);
+
+            document.getElementById('submissionListView').style.display = 'none';
+            document.getElementById('submissionDetailView').style.display = 'block';
+        };
+
+        function appendSubmissionDetail(container, label, value, fullWidth) {
+            const field = document.createElement('div');
+            field.className = 'submission-detail-field';
+            if (fullWidth) {
+                field.classList.add('full-width');
+            }
+
+            const heading = document.createElement('strong');
+            heading.textContent = label;
+            const valueElement = document.createElement('p');
+            valueElement.className = fullWidth ? 'submission-content' : '';
+            valueElement.textContent = value == null || String(value).trim() === ''
+                ? 'Not provided'
+                : String(value);
+            field.append(heading, valueElement);
+            container.appendChild(field);
+        }
+
+        window.backToSubmissionList = function () {
+            document.getElementById('submissionDetailView').style.display = 'none';
+            document.getElementById('submissionListView').style.display = 'block';
         };
 
         window.showAssignToGradeModal = function (assignmentId) {
@@ -529,6 +1318,41 @@
             });
         };
 
+        window.aiGradeSubmission = async function (submissionId, button) {
+            if (button?.disabled) {
+                return;
+            }
+
+            const originalText = button?.textContent || 'AI Grade';
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Grading...';
+            }
+
+            try {
+                const response = await fetch(`/api/submissions/ai-grade/${submissionId}`, { method: 'POST' });
+                const result = await response.json();
+                if (!response.ok) {
+                    alert(result.message || result.error || 'AI grading did not complete.');
+                    return;
+                }
+                const row = button?.closest('tr');
+                if (row && result.status === 'graded') {
+                    row.cells[1].textContent = result.qualityScore ?? 'Not graded';
+                }
+                alert(result.status === 'graded'
+                    ? `AI score: ${result.qualityScore}/5\n${result.feedback}`
+                    : result.message || result.error || `AI grading did not produce a score (status: ${result.status || 'unknown'}).`);
+            } catch (error) {
+                alert(`AI grading failed: ${error.message}`);
+            } finally {
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = originalText;
+                }
+            }
+        };
+
         window.exportAssignments = function () {
             fetch('/api/assignments/bulk/extract')
                 .then(r => r.json())
@@ -581,7 +1405,7 @@
                             submission.assignment?.name || '',
                             submission.submitter?.id || '',
                             submission.submitter?.name || '',
-                            submission.content || '',
+                            formatSubmissionContent(submission.content),
                             submission.comment || '',
                             submission.grade || '',
                             submission.feedback || '',
@@ -619,6 +1443,14 @@
 
         window.closeAddAssignmentModal = function () {
             document.getElementById('addAssignmentModal').style.display = 'none';
+        };
+
+        window.closeEditAiRubricModal = function () {
+            document.getElementById('editAiRubricModal').style.display = 'none';
+        };
+
+        window.closeEditAssignmentModal = function () {
+            document.getElementById('editAssignmentModal').style.display = 'none';
         };
 
         window.closeSubmissionsModal = function () {
@@ -661,11 +1493,9 @@
                 info: true,
                 autoWidth: false,
                 columns: [
-                    { title: 'Student/Group' },
-                    { title: 'Content' },
-                    { title: 'Comments' },
+                    { title: 'Submitter' },
                     { title: 'Grade' },
-                    { title: 'Actions', orderable: false }
+                    { title: 'Actions', orderable: false, searchable: false }
                 ]
             });
 

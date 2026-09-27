@@ -32,7 +32,7 @@ public class TeacherGradingTeamTeachAPIController {
     public ResponseEntity<TeacherGradingTeamTeach> createAssignment(@RequestBody TeacherGradingTeamTeach teamGrade) {
         teacherGradingTeamTeachRepo.save(teamGrade);
 
-        // new Assignment(name, "Team Teach", description, 1, duedate);
+        // new Assignment(name, "Team Teach", description, 1, duedate, assignmentType);
 
         return new ResponseEntity<>(teamGrade, HttpStatus.CREATED);
     }

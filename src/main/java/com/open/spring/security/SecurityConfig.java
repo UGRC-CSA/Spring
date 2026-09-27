@@ -83,6 +83,10 @@ public class SecurityConfig {
                 // JWT related configuration
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // STATELESS stops Spring storing a SecurityContext, but it does not stop the
+                // request cache from creating a session to remember "where the user was going".
+                // On an API chain there is nowhere to go back to, so disable it outright.
+                .requestCache(cache -> cache.disable())
                 .authorizeHttpRequests(auth -> auth
 
                         // ========== AUTHENTICATION & USER MANAGEMENT ==========
@@ -90,9 +94,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/api/**", "/authenticate", "/run/**").permitAll()  // Allow only relevant CORS preflight requests
                         .requestMatchers("/authenticate").permitAll()
                         .requestMatchers(HttpMethod.POST, "/authenticate").permitAll() // allow POST on auth
-                        .requestMatchers("/api/person/create", "/api/person/create/").permitAll()
+                        // Admin-only writes are listed FIRST: rules are first-match-wins, and a
+                        // method-less permitAll on /api/person/create would otherwise also permit
+                        // DELETE and PUT on that path, shadowing the ROLE_ADMIN rules below.
+                        .requestMatchers(HttpMethod.DELETE, "/api/person/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/person/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/person/create").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/person/create/").permitAll()
                         // Public grades submission - no authentication required
                         .requestMatchers(HttpMethod.POST, "/api/grades").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/grades/").permitAll()
@@ -106,9 +113,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/grades/read-gist/**").permitAll()
                         // ← MAKE DEBUGGER - PUBLIC (NO AUTH)
                         .requestMatchers("/api/make/**").permitAll()
-                        // Admin-only endpoints, beware of DELETE operations and impact to cascading relational data 
-                        .requestMatchers(HttpMethod.DELETE, "/api/person/**").hasAuthority("ROLE_ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/person/**").hasAuthority("ROLE_ADMIN")
+                        // (DELETE/PUT /api/person/** are declared above, ahead of the create permit.)
                         .requestMatchers(HttpMethod.GET, "/api/person/uid/**").permitAll()
                         // Face biometric data:
                         //   GET /faces  - teacher/admin only (scanner feed)
@@ -189,6 +194,16 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/challenge-submission/**").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN", "ROLE_TEACHER", "ROLE_STUDENT")
                         // ==========================================
 
+                        // ========== ASSIGNMENT CREATOR SYNC ==========
+                        // auto-create is how Pages frontmatter reaches Spring. The trusted Pages bot
+                        // is provisioned with ROLE_ASSIGNMENT_SYNC and nothing else, so it is listed
+                        // here to reach this one endpoint; the default /api/** rule below still keeps
+                        // it out of everything else. ROLE_ASSIGNMENT_SYNC is never granted to students
+                        // or teachers - only that bot account may set assignment creators.
+                        .requestMatchers(HttpMethod.POST, "/api/assignments/auto-create")
+                            .hasAnyAuthority("ROLE_USER", "ROLE_ADMIN", "ROLE_TEACHER", "ROLE_STUDENT", "ROLE_ASSIGNMENT_SYNC")
+                        // =============================================
+
                         // ========== ASSIGNMENT SUBMISSION ==========
                         // Assignment text/link submissions - public (student identity passed in payload)
                         .requestMatchers(HttpMethod.POST, "/api/submissions/**").permitAll()
@@ -243,7 +258,8 @@ public class SecurityConfig {
         policy.put("GET /api/face/faces", "ROLE_TEACHER|ROLE_ADMIN");
         policy.put("POST /api/face/register", "ROLE_USER|ROLE_STUDENT|ROLE_TEACHER|ROLE_ADMIN");
         policy.put("/api/face/**", "ROLE_TEACHER|ROLE_ADMIN");
-        policy.put("POST /api/assignment-submissions/upload", "ROLE_USER|ROLE_ADMIN|ROLE_TEACHER|ROLE_STUDENT");
+        policy.put("POST /api/assignment-submissions/upload", "permitAll");
+        policy.put("POST /api/assignments/auto-create", "ROLE_USER|ROLE_ADMIN|ROLE_TEACHER|ROLE_STUDENT|ROLE_ASSIGNMENT_SYNC");
         policy.put("/api/pausemenu/**", "permitAll");
         policy.put("/api/leaderboard/**", "permitAll");
         policy.put("/api/exports/**", "ROLE_ADMIN");

@@ -4,13 +4,13 @@ import java.util.Base64;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
@@ -83,8 +83,10 @@ public class AssignmentViewController {
             @RequestParam String name,
             @RequestParam String type,
             @RequestParam(required = false, defaultValue = "") String description,
+            @RequestParam(required = false) String aiRubric,
             @RequestParam Double points,
             @RequestParam String dueDate,
+            @RequestParam(required = false, defaultValue = "File") String assignmentType,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
         if (userDetails == null) {
@@ -105,7 +107,10 @@ public class AssignmentViewController {
             normalizedDueDate = parts[1] + "/" + parts[2] + "/" + parts[0];
         }
 
-        Assignment assignment = new Assignment(name, type, description, points, normalizedDueDate);
+        Assignment assignment = new Assignment(name, type, description, points, normalizedDueDate, assignmentType);
+        if (aiRubric != null && !aiRubric.isBlank()) {
+            assignment.setAiRubric(aiRubric.trim());
+        }
         // Assignment.id is @GeneratedValue; setting it manually causes merge/stale-state issues.
         // Keep customId as a tolerated input for backward-compatible form posts, but ignore it.
 

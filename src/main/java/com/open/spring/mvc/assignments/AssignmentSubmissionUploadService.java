@@ -14,8 +14,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.open.spring.mvc.groups.Submitter;
 import com.open.spring.mvc.S3uploads.FileHandler;
+import com.open.spring.mvc.groups.Submitter;
 import com.open.spring.mvc.person.Person;
 import com.open.spring.mvc.person.PersonJpaRepository;
 
@@ -26,16 +26,19 @@ public class AssignmentSubmissionUploadService {
     private final PersonJpaRepository personRepo;
     private final AssignmentJpaRepository assignmentRepo;
     private final AssignmentSubmissionJPA submissionRepo;
+    private final AssignmentAiGradingService aiGradingService;
 
     public AssignmentSubmissionUploadService(
             FileHandler fileHandler,
             PersonJpaRepository personRepo,
             AssignmentJpaRepository assignmentRepo,
-            AssignmentSubmissionJPA submissionRepo) {
+            AssignmentSubmissionJPA submissionRepo,
+            AssignmentAiGradingService aiGradingService) {
         this.fileHandler = fileHandler;
         this.personRepo = personRepo;
         this.assignmentRepo = assignmentRepo;
         this.submissionRepo = submissionRepo;
+        this.aiGradingService = aiGradingService;
     }
 
     public Map<String, Object> upload(
@@ -45,14 +48,29 @@ public class AssignmentSubmissionUploadService {
             String username,
             MultipartFile file,
             String notes,
+            Integer technicalExcellence,
+            Integer communication,
+            Integer workHabits,
+            Integer aiOrchestration,
+            String selfAssessmentReflection,
             UserDetails userDetails) {
 
         validateAuthentication(userDetails);
         validateRequiredFields(userId, username, file);
 
+        String selfAssessmentError = AssignmentSubmission.validateSelfAssessment(
+                technicalExcellence, communication, workHabits, aiOrchestration, selfAssessmentReflection);
+        if (selfAssessmentError != null) {
+            throw new UploadException(HttpStatus.BAD_REQUEST, selfAssessmentError);
+        }
+
         Person authenticatedUser = getAuthenticatedUser(userDetails);
         Person targetUser = getTargetUser(userId);
         Assignment assignment = resolveAssignment(assignmentId, assignmentName);
+
+        if (!isAllowedSubmissionType(assignment, "file")) {
+            throw new UploadException(HttpStatus.BAD_REQUEST, "This assignment does not accept file submissions");
+        }
 
         validateUsernameMatchesTarget(username, targetUser);
         validateSubmitPermission(authenticatedUser, userId);
@@ -71,7 +89,14 @@ public class AssignmentSubmissionUploadService {
             authenticatedUser,
             originalFilename,
             s3Filename,
-            storedFilename);
+            storedFilename,
+            technicalExcellence,
+            communication,
+            workHabits,
+            aiOrchestration,
+            selfAssessmentReflection);
+
+        savedSubmission = tryAutoGrade(savedSubmission);
 
         return buildResponse(
             assignment,
@@ -83,6 +108,27 @@ public class AssignmentSubmissionUploadService {
                 s3Filename,
             storedFilename,
             savedSubmission);
+    }
+
+    /**
+     * Attempts to AI-grade a freshly uploaded submission immediately (e.g. a .ipynb
+     * notebook), best-effort. Grading failures never fail the upload itself.
+     */
+    private AssignmentSubmission tryAutoGrade(AssignmentSubmission submission) {
+        try {
+            AssignmentAiGradingService.GradeResult result = aiGradingService.grade(submission);
+            if ("graded".equals(result.status())) {
+                submission.setQualityScore(result.score());
+                submission.setGrade(result.score().doubleValue());
+                submission.setFeedback(result.feedback());
+                submission.setAiSummary(result.feedback());
+                return submissionRepo.save(submission);
+            }
+        } catch (Exception e) {
+            // Best-effort: the upload already succeeded, so a grading failure is logged, not thrown.
+            System.err.println("Auto-grade failed for submission " + submission.getId() + ": " + e.getMessage());
+        }
+        return submission;
     }
 
     private void validateAuthentication(UserDetails userDetails) {
@@ -192,10 +238,15 @@ public class AssignmentSubmissionUploadService {
             Person authenticatedUser,
             String originalFilename,
             String s3Filename,
-            String storedFilename) {
+            String storedFilename,
+            Integer technicalExcellence,
+            Integer communication,
+            Integer workHabits,
+            Integer aiOrchestration,
+            String selfAssessmentReflection) {
 
         Map<String, Object> content = new HashMap<>();
-        content.put("type", "file");
+        content.put("type", assignment.getAssignmentType());
         content.put("filename", originalFilename);
         content.put("storedFilename", storedFilename);
         content.put("storagePath", targetUser.getUid() + "/" + s3Filename);
@@ -211,6 +262,11 @@ public class AssignmentSubmissionUploadService {
                 content,
                 notes == null ? "" : notes,
                 false);
+        submission.setTechnicalExcellence(technicalExcellence);
+        submission.setCommunication(communication);
+        submission.setWorkHabits(workHabits);
+        submission.setAiOrchestration(aiOrchestration);
+        submission.setSelfAssessmentReflection(selfAssessmentReflection);
 
         return submissionRepo.save(submission);
     }
@@ -241,6 +297,11 @@ public class AssignmentSubmissionUploadService {
         response.put("size", file.getSize());
         response.put("notes", notes);
         response.put("uploadedBy", authenticatedUser.getUid());
+        if (savedSubmission.getGrade() != null) {
+            response.put("grade", savedSubmission.getGrade());
+            response.put("feedback", savedSubmission.getFeedback());
+            response.put("qualityScore", savedSubmission.getQualityScore());
+        }
         return response;
     }
 
@@ -260,6 +321,13 @@ public class AssignmentSubmissionUploadService {
         }
         String normalized = value.trim().toLowerCase(Locale.ROOT);
         return "null".equals(normalized) || "undefined".equals(normalized);
+    }
+
+    private boolean isAllowedSubmissionType(Assignment assignment, String contentType) {
+        return assignment != null
+                && assignment.getAssignmentType() != null
+                && contentType != null
+                && assignment.getAssignmentType().trim().equalsIgnoreCase(contentType.trim());
     }
 
     public static class UploadException extends RuntimeException {
